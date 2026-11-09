@@ -1,5 +1,6 @@
 /*******************************************IMPORTS***********************************************/
 
+const { STATUS_CODES } = require("../../constants/statusCodes")
 const {addCategoryService,getCategoryService,editCategoryService,toggleStatusService,deleteCategoryService}=require("../../service/category")
 
 /*--------------------------------------ADD CATEGORY----------------------------------------*/
@@ -8,14 +9,14 @@ const addCategory=async (req,res)=>{
     try{
     
         const result=await addCategoryService(req.body)
-        res.status(200).json({
+        res.status(STATUS_CODES.OK).json({
             success:result.success,
             message:result.message
         })
         
     }catch(error){
         console.log("Add Category Controller:-",error?.message)
-        res.status(400).json({
+        res.status(STATUS_CODES.BAD_REQUEST).json({
             success:false,
             message:error?.message||"Something went wrong"
         })
@@ -31,7 +32,7 @@ const getCategory=async(req,res)=>{
 
     try{
         const result=await getCategoryService(req.query)
-        return res.status(200).json({
+        return res.status(STATUS_CODES.OK).json({
             success:true,
             message:"Categories Fetched Successfully",
             data:result.data,
@@ -39,7 +40,7 @@ const getCategory=async(req,res)=>{
             totalCategories:result.totalCategories
         })
     }catch(error){
-        return res.status(400).json({
+        return res.status(STATUS_CODES.BAD_REQUEST).json({
             success:false,
             message:error?.message||"Something went wrong"
         })
@@ -57,14 +58,14 @@ const editCategory=async(req,res)=>{
 
     try{
         const result=await editCategoryService(req.body,req.params)
-        return res.status(200).json({
+        return res.status(STATUS_CODES.OK).json({
             success:result.success,
             message:result.message
         })
 
     }catch(error){
         console.log("EditCategoryController:-",error)
-        res.status(400).json({
+        res.status(STATUS_CODES.BAD_REQUEST).json({
             success:false,
             message:error?.message||"Failed to edit"
         })
@@ -80,12 +81,12 @@ const editCategory=async(req,res)=>{
 const toggleStatus=async(req,res)=>{
     try{
         const result=await toggleStatusService(req.params)
-        return res.status(200).json({
+        return res.status(STATUS_CODES.OK).json({
             success:result?.success,
             message:result?.message
         })
     }catch(error){
-        return res.status(400).json({
+        return res.status(STATUS_CODES.BAD_REQUEST).json({
             success:false,
             message:error?.message||"Failed to toggle"
         })
@@ -102,13 +103,13 @@ const deleteCategory=async (req,res)=>{
     try{
         const result=await deleteCategoryService(req.params)
         
-        return res.status(200).json({
+        return res.status(STATUS_CODES.OK).json({
             success:result.success,
             message:result.message
         })
     }catch(error){
         console.log("Delete Category",error?.message)
-        return res.status(400).json({
+        return res.status(STATUS_CODES.BAD_REQUEST).json({
             success:false,
             message:error?.message
         })

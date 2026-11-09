@@ -5,6 +5,7 @@ const bycrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { OAuth2Client } = require("google-auth-library");
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const { STATUS_CODES } = require("../../constants/statusCodes");
 const User = require("../../models/user");
 const OTP = require("../../models/otp");
 const isAuthenticated = require("../../middleware/user/auth");
@@ -23,25 +24,25 @@ const login = async (req, res) => {
     /*************************Validation 1***********************/
 
     if (!cleanEmail || cleanEmail == "") {
-      return res.status(400).json({
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
         success: false,
         message: "Email is required",
       });
     }
     if (!emailRegex.test(cleanEmail)) {
-      return res.status(400).json({
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
         success: false,
         message: "Enter a valid email",
       });
     }
     if (!cleanPassword || cleanPassword == "") {
-      return res.status(400).json({
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
         success: false,
         message: "Password is required",
       });
     }
     if (password.length < 6) {
-      return res.status(400).json({
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
         success: false,
         message: "Password must be atleast 6",
       });
@@ -50,7 +51,7 @@ const login = async (req, res) => {
 
     const result=await loginService({email: cleanEmail,password: cleanPassword})
 
-   return res.status(200).json({
+   return res.status(STATUS_CODES.OK).json({
     success:true,
     message:result?.message,
     isVerified:result?.isVerified,
@@ -61,7 +62,7 @@ const login = async (req, res) => {
 
   } catch (error) {
     console.log("Singup Error:-", error);
-    return res.status(500).json({
+    return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
       success: false,
       message: error.message||"Something went wrong",
     });
@@ -71,6 +72,3 @@ const login = async (req, res) => {
 module.exports = {
   login
 };
-
-
-

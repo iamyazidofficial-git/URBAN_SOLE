@@ -1,5 +1,6 @@
 import axios from "axios"
 import { toast } from "react-toastify"
+import { STATUS_CODES } from "../constants/statusCodes"
 
 const axiosInstance = axios.create({
   baseURL: "http://localhost:2222",
@@ -36,7 +37,7 @@ axiosInstance.interceptors.response.use(
 
     // 1. Check if user is blocked
     if (
-      error.response?.status === 403 &&
+      error.response?.status === STATUS_CODES.FORBIDDEN &&
       errorMessage === "Your account has been blocked"
     ) {
       console.log("BLOCKED USER DETECTED")
@@ -63,7 +64,7 @@ axiosInstance.interceptors.response.use(
 
     // 2. Check if Token is Expired or Unauthorized (401)
     if (
-      error.response?.status === 401 || 
+      error.response?.status === STATUS_CODES.UNAUTHORIZED || 
       errorMessage.toLowerCase().includes("token expired") ||
       errorMessage.toLowerCase().includes("jwt expired") ||
       errorMessage.toLowerCase().includes("unauthorized")
