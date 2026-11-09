@@ -1,0 +1,557 @@
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Archivo+Narrow:wght@700&display=swap");
+
+/* Scoped Container for Main Content */
+.customer-management-container {
+  margin-left: 260px;
+  width: calc(100% - 260px);
+  min-height: 100vh;
+  padding: 40px;
+  background-color: #f7f7f8;
+  font-family: "Inter", sans-serif;
+  color: #111111;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.customer-management-container * {
+  box-sizing: border-box;
+}
+
+/* ===============================
+   HEADER & SEARCH
+================================ */
+
+.cm-header-section {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.cm-title {
+  font-family: "Archivo Narrow", sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin: 0 0 6px 0;
+  color: #000000;
+}
+
+.cm-subtitle {
+  font-size: 13px;
+  color: #71717a;
+  margin: 0;
+}
+
+/* Search Bar */
+.cm-search-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  align-items: center;
+}
+
+.cm-search-icon {
+  position: absolute;
+  left: 12px;
+  font-size: 18px;
+  color: #71717a;
+  pointer-events: none;
+}
+
+.cm-search-input {
+  width: 100%;
+  height: 38px;
+  padding: 0 14px 0 38px;
+  border: 1px solid #d4d4d8;
+  border-radius: 8px;
+  background-color: #ffffff;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  color: #111111;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.cm-search-input::placeholder {
+  color: #a1a1aa;
+}
+
+.cm-search-input:focus {
+  border-color: #000000;
+}
+
+/* ===============================
+   TABLE CARD
+================================ */
+
+.cm-table-card {
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.cm-table-responsive {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.cm-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.cm-table th {
+  padding: 16px 24px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #71717a;
+  text-transform: uppercase;
+  border-bottom: 1px solid #e4e4e7;
+  background-color: #fafafa;
+}
+
+.cm-table td {
+  padding: 14px 24px;
+  font-size: 13px;
+  border-bottom: 1px solid #f4f4f5;
+  vertical-align: middle;
+}
+
+.cm-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* User Avatar & Name */
+.cm-user-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cm-avatar-img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.cm-avatar-text {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: #e0f2fe;
+  color: #0369a1;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cm-user-name {
+  font-weight: 700;
+  color: #000000;
+}
+
+.cm-email-cell {
+  color: #52525b;
+}
+
+.cm-date-cell {
+  color: #52525b;
+}
+
+.cm-orders-cell {
+  font-weight: 700;
+  color: #000000;
+}
+
+/* Status Badges */
+.cm-status-badge {
+  display: inline-block;
+  padding: 3px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.cm-status-badge.active {
+  background-color: #e4e4e7;
+  color: #27272a;
+}
+
+.cm-status-badge.blocked {
+  background-color: #000000;
+  color: #ffffff;
+}
+
+/* Toggle Switch */
+.cm-toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 38px;
+  height: 22px;
+}
+
+.cm-toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.cm-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #e4e4e7;
+  border: 1px solid #111111;
+  border-radius: 20px;
+  transition: 0.3s;
+}
+
+.cm-toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #000000;
+  border-radius: 50%;
+  transition: 0.3s;
+}
+
+.cm-toggle-switch input:checked + .cm-toggle-slider {
+  background-color: #ffffff;
+}
+
+.cm-toggle-switch input:checked + .cm-toggle-slider:before {
+  transform: translateX(16px);
+  background-color: #000000;
+}
+
+/* ===============================
+   PAGINATION FOOTER
+================================ */
+
+.cm-pagination-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-top: 1px solid #e4e4e7;
+  background-color: #ffffff;
+}
+
+.cm-showing-text {
+  font-size: 12px;
+  color: #71717a;
+  margin: 0;
+}
+
+.cm-showing-text strong {
+  color: #111111;
+}
+
+.cm-pagination {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cm-page-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e4e4e7;
+  background-color: #ffffff;
+  color: #52525b;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cm-page-btn:hover {
+  background-color: #f4f4f5;
+  color: #000000;
+}
+
+.cm-page-btn.active {
+  background-color: #000000;
+  color: #ffffff;
+  border-color: #000000;
+}
+
+.cm-page-btn.arrow-btn {
+  font-size: 11px;
+}
+
+/* Page Footer */
+.cm-footer {
+  text-align: center;
+  font-size: 11px;
+  color: #71717a;
+  margin-top: auto;
+  padding-top: 20px;
+}
+
+/* ===============================
+   RESPONSIVE DESIGN
+================================ */
+
+@media (max-width: 768px) {
+  .customer-management-container {
+    padding: 20px 16px;
+  }
+
+  .cm-header-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cm-search-wrapper {
+    max-width: 100%;
+  }
+
+  .cm-pagination-footer {
+    flex-direction: column;
+    gap: 12px;
+    align-items: center;
+  }
+}
+
+/* ===============================
+   CONFIRM LOGOUT MODAL
+   =============================== */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+
+  width: 100%;
+  height: 100vh;
+
+  background: rgba(0, 0, 0, 0.45);
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  z-index: 3000;
+
+  animation: modalFadeIn 0.2s ease;
+}
+
+
+/* ===============================
+   MODAL CONTAINER
+   =============================== */
+
+.modal-container {
+  width: 100%;
+  max-width: 400px;
+
+  background: #ffffff;
+
+  padding: 32px;
+
+  margin: 0 16px;
+
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
+
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.15);
+
+  display: flex;
+  flex-direction: column;
+
+  animation: modalSlideUp 0.25s ease;
+}
+
+
+/* ===============================
+   MODAL HEADER
+   =============================== */
+
+.modal-header h3 {
+  margin: 0 0 10px;
+
+  font-family: "Archivo Narrow", sans-serif;
+
+  font-size: 24px;
+  font-weight: 700;
+
+  letter-spacing: -0.02em;
+
+  color: #000000;
+}
+
+
+/* ===============================
+   MODAL BODY
+   =============================== */
+
+.modal-body p {
+  margin: 0;
+
+  font-family: "Inter", sans-serif;
+
+  font-size: 14px;
+  line-height: 1.6;
+
+  color: #666666;
+}
+
+
+/* ===============================
+   MODAL ACTIONS
+   =============================== */
+
+.modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+
+  gap: 10px;
+
+  margin-top: 30px;
+}
+
+
+/* ===============================
+   MODAL BUTTON
+   =============================== */
+
+.modal-btn {
+  height: 42px;
+
+  padding: 0 22px;
+
+  border: 1px solid transparent;
+
+  font-family: "Inter", sans-serif;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  letter-spacing: 0.08em;
+
+  text-transform: uppercase;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+
+/* ===============================
+   CANCEL BUTTON
+   =============================== */
+
+.modal-btn.cancel-btn {
+  background: #ffffff;
+
+  color: #333333;
+
+  border-color: #d6d6d6;
+}
+
+.modal-btn.cancel-btn:hover {
+  background: #f7f7f7;
+
+  border-color: #111111;
+}
+
+
+/* ===============================
+   CONFIRM LOGOUT BUTTON
+   =============================== */
+
+.modal-btn.confirm-btn {
+  background: #000000;
+
+  color: #ffffff;
+
+  border-color: #000000;
+}
+
+.modal-btn.confirm-btn:hover {
+  background: #333333;
+
+  border-color: #333333;
+}
+
+
+
+/* ===============================
+   ANIMATIONS
+   =============================== */
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+/* ===============================
+   MOBILE
+   =============================== */
+
+@media (max-width: 500px) {
+
+  .modal-container {
+    max-width: none;
+
+    padding: 26px 22px;
+
+    margin: 0 16px;
+  }
+
+  .modal-header h3 {
+    font-size: 22px;
+  }
+
+  .modal-actions {
+    margin-top: 26px;
+  }
+
+  .modal-btn {
+    flex: 1;
+
+    padding: 0 16px;
+  }
+}

@@ -1,0 +1,836 @@
+/* ================= ORDER DETAILS PAGE CSS (Exact Track Order Match) ================= */
+
+.to-header {
+  margin-bottom: 24px;
+}
+
+.to-main-title {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #1b1c1c;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.01em;
+}
+
+.to-order-id-sub {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: #5d5f5f;
+  margin: 0;
+  font-weight: 500;
+}
+
+/* Top Back & Action Bar */
+.od-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.od-back-link {
+  background: none;
+  border: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1b1c1c;
+  cursor: pointer;
+  padding: 0;
+}
+
+.od-back-link:hover {
+  text-decoration: underline;
+}
+
+.od-header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* Top Action Buttons (Invoice & Update Status) */
+.od-top-btn {
+  background-color: #ffffff;
+  color: #1b1c1c;
+  border: 1px solid #cfc4c5;
+  padding: 8px 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: 0px;
+  letter-spacing: 0.05em;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.od-top-btn:hover {
+  background-color: #f5f3f3;
+}
+
+.od-primary-btn {
+  background-color: #000000;
+  color: #ffffff;
+  border-color: #000000;
+}
+
+.od-primary-btn:hover {
+  background-color: #333333;
+}
+
+/* Top Summary Banner Card (Matching Screenshot Header) */
+.od-banner-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.od-banner-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.od-banner-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #5d5f5f;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.od-banner-val {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1b1c1c;
+}
+
+.od-highlight-price {
+  color: #000000;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.od-banner-divider {
+  width: 1px;
+  height: 32px;
+  background-color: #e5e2e2;
+}
+
+@media (max-width: 900px) {
+  .od-banner-divider {
+    display: none;
+  }
+  .od-banner-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+/* Status Pill */
+.od-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background-color: #1b1c1c;
+  color: #ffffff;
+  border-radius: 0px;
+}
+
+.od-status-dot {
+  width: 6px;
+  height: 6px;
+  background-color: #ffffff;
+  border-radius: 50%;
+}
+
+/* Dashboard Grid Layout */
+.to-dashboard-grid {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 24px;
+  margin-bottom: 60px;
+}
+
+@media (max-width: 1024px) {
+  .to-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.to-left-column,
+.to-right-column {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Card Container */
+.to-card {
+  background: #ffffff;
+  border: 1px solid #cfc4c5;
+  padding: 24px;
+  border-radius: 0px;
+}
+
+.to-card-section-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #5d5f5f;
+  letter-spacing: 0.05em;
+  display: block;
+  margin-bottom: 16px;
+  border-bottom: 1px solid #e5e2e2;
+  padding-bottom: 8px;
+}
+
+.od-section-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.od-items-count-badge {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  background-color: #f5f3f3;
+  border: 1px solid #cfc4c5;
+  padding: 2px 8px;
+  color: #5d5f5f;
+}
+
+/* Order Items Table Styles */
+.od-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.od-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.od-items-table th {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #5d5f5f;
+  text-transform: uppercase;
+  padding: 8px 12px;
+  border-bottom: 1px solid #e5e2e2;
+  letter-spacing: 0.05em;
+}
+
+.od-items-table td {
+  padding: 14px 12px;
+  border-bottom: 1px solid #e5e2e2;
+  vertical-align: middle;
+}
+
+.od-items-table tr:last-child td {
+  border-bottom: none;
+}
+
+.od-table-img-box {
+  width: 50px;
+  height: 50px;
+  background-color: #f5f3f3;
+  border: 1px solid #cfc4c5;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.od-table-img-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  mix-blend-mode: multiply;
+}
+
+.od-table-prod-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.od-table-prod-name {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #1b1c1c;
+  margin: 0;
+}
+
+.od-table-sku {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: #5d5f5f;
+  margin: 0;
+}
+
+.od-table-text {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: #1b1c1c;
+  font-weight: 500;
+}
+
+.od-bold-text {
+  font-weight: 700;
+}
+
+/* Order & Price Summary */
+.to-summary-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.to-sum-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.to-sum-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: #5d5f5f;
+}
+
+.to-sum-val {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: #1b1c1c;
+  font-weight: 500;
+}
+
+.to-sum-val.to-bold {
+  font-weight: 700;
+}
+
+.to-summary-divider {
+  width: 100%;
+  height: 1px;
+  background-color: #e5e2e2;
+  margin: 16px 0;
+}
+
+.to-summary-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #cfc4c5;
+}
+
+.to-total-label {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #1b1c1c;
+}
+
+.to-total-val {
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1b1c1c;
+}
+
+/* Customer Information Styles */
+.od-customer-profile-block {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.od-cust-avatar {
+  width: 44px;
+  height: 44px;
+  background-color: #1b1c1c;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Archivo Narrow', sans-serif;
+  font-weight: 700;
+  font-size: 16px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.od-cust-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.od-cust-name {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #1b1c1c;
+  margin: 0 0 2px 0;
+}
+
+.od-cust-since {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: #5d5f5f;
+  margin: 0;
+}
+
+.od-info-group {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.od-info-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  color: #5d5f5f;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.od-info-value {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: #1b1c1c;
+  font-weight: 500;
+  margin: 0;
+}
+
+/* Delivery Address Block */
+.to-address-block {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: #5d5f5f;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.to-addr-bold {
+  color: #1b1c1c;
+  font-weight: 600;
+}
+
+/* Delivery Timeline */
+.to-timeline-container {
+  position: relative;
+  padding-left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.to-timeline-line {
+  position: absolute;
+  left: 19px;
+  top: 10px;
+  bottom: 10px;
+  width: 1px;
+  background-color: #cfc4c5;
+}
+
+.to-timeline-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  position: relative;
+}
+
+.to-timeline-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background-color: #cfc4c5;
+  border: 2px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+  z-index: 1;
+}
+
+.to-timeline-dot.completed {
+  background-color: #1b1c1c;
+}
+
+.to-check-svg {
+  width: 8px;
+  height: 8px;
+  color: #ffffff;
+}
+
+.to-timeline-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.to-timeline-title {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: #1b1c1c;
+  margin: 0;
+}
+
+.to-timeline-date {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: #5d5f5f;
+  margin: 0;
+}
+
+/* ================= ORDER STATUS MODAL STYLES ================= */
+
+.od-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+}
+
+.od-modal-card {
+  background: #ffffff;
+  border: 1px solid #cfc4c5;
+  padding: 30px;
+  width: 100%;
+  max-width: 420px;
+  border-radius: 0px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.od-modal-title {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #1b1c1c;
+  margin: 0;
+}
+
+.od-modal-subtitle {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  color: #5d5f5f;
+  margin: 0;
+}
+
+.od-modal-dropdown-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.od-modal-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #5d5f5f;
+  letter-spacing: 0.05em;
+}
+
+.od-modal-select {
+  width: 100%;
+  padding: 10px 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: #1b1c1c;
+  background-color: #ffffff;
+  border: 1px solid #cfc4c5;
+  border-radius: 0px;
+  outline: none;
+  cursor: pointer;
+}
+
+.od-modal-select:focus {
+  border-color: #000000;
+}
+
+.od-modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.od-modal-btn-cancel {
+  background-color: #ffffff;
+  color: #1b1c1c;
+  border: 1px solid #cfc4c5;
+  padding: 10px 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: 0px;
+  transition: all 0.2s;
+}
+
+.od-modal-btn-cancel:hover {
+  background-color: #f5f3f3;
+}
+
+.od-modal-btn-confirm {
+  background-color: #000000;
+  color: #ffffff;
+  border: 1px solid #000000;
+  padding: 10px 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: 0px;
+  transition: all 0.2s;
+}
+
+.od-modal-btn-confirm:hover {
+  background-color: #333333;
+}
+
+/* ================= REASON INPUT & VALIDATION STYLES ================= */
+
+.od-modal-textarea {
+  width: 100%;
+  height: 70px;
+  padding: 10px 12px;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: #1b1c1c;
+  background-color: #ffffff;
+  border: 1px solid #cfc4c5;
+  border-radius: 0px;
+  outline: none;
+  resize: none;
+  box-sizing: border-box;
+}
+
+.od-modal-textarea:focus {
+  border-color: #000000;
+}
+
+.od-reason-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.od-error-text {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: #b91c1c; /* റെഡ് കളർ */
+  font-weight: 600;
+  visibility: hidden;
+}
+
+.od-error-text.visible {
+  visibility: visible;
+}
+
+.od-char-count {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  color: #5d5f5f;
+}
+/* ================= STATUS PILL BADGE & PEN ICON ================= */
+
+.od-inline-status-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ഫോട്ടോ 1 ലെ പോലെ പിൽ ഷേപ്പ് ബാഡ്ജ് */
+.od-status-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 14px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 50px; /* പൂർണ്ണമായ റൗണ്ടഡ് പിൽ ഷേപ്പ് */
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+/* വിവിധ സ്റ്റാറ്റസുകൾക്കനുസരിച്ചുള്ള സോഫ്റ്റ് കളറുകൾ */
+.od-status-pill-badge.pending {
+  background-color: #fef3c7;
+  color: #b45309;
+}
+
+.od-status-pill-badge.placed {
+  background-color: #e0f2fe;
+  color: #0369a1;
+}
+
+.od-status-pill-badge.shipped {
+  background-color: #ede9fe;
+  color: #6d28d9;
+}
+
+.od-status-pill-badge.out_for_delivery,
+.od-status-pill-badge.out_of_delivery {
+  background-color: #ffedd5;
+  color: #c2410c;
+}
+
+.od-status-pill-badge.delivered {
+  background-color: #e6f4ea;
+  color: #137333;
+}
+
+.od-status-pill-badge.cancelled {
+  background-color: #fee2e2;
+  color: #b91c1c;
+}
+
+.od-status-pill-badge.returned {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+/* ഫോട്ടോ 2 ലെ പോലെ ക്ലീൻ ആയ പെൻ ഐക്കൺ */
+.od-inline-pen-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #5d5f5f;
+  transition: color 0.2s ease, transform 0.2s ease;
+  padding: 2px;
+}
+
+.od-inline-pen-icon:hover {
+  color: #000000;
+  transform: scale(1.1);
+}
+
+
+/* ================= RETURN BAR WITH NOTIFICATION BELL ================= */
+
+.od-return-bar-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #f5f3f3;
+  border: 1px solid #cfc4c5;
+  padding: 4px 4px 4px 10px;
+  border-radius: 0px;
+  gap: 12px;
+  min-width: 225px;
+}
+
+.od-bar-status-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* നോട്ടിഫിക്കേഷൻ ബെൽ ഐക്കൺ സ്റ്റൈൽ */
+.od-notification-bell {
+  flex-shrink: 0;
+}
+
+/* സ്റ്റാറ്റസിനനുസരിച്ചുള്ള ബെൽ ഐക്കണിന്റെ കളർ മാറ്റങ്ങൾ */
+.od-notification-bell.return_requested {
+  stroke: #b45309; /* ഓറഞ്ച് */
+}
+
+.od-notification-bell.return_approved,
+.od-notification-bell.returned {
+  stroke: #137333; /* ഗ്രീൻ */
+}
+
+.od-notification-bell.return_rejected {
+  stroke: #b91c1c; /* റെഡ് */
+}
+
+.od-bar-status-text {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.od-bar-status-text.return_requested {
+  color: #b45309;
+}
+
+.od-bar-status-text.return_approved,
+.od-bar-status-text.returned {
+  color: #137333;
+}
+
+.od-bar-status-text.return_rejected {
+  color: #b91c1c;
+}
+
+.od-bar-view-reason-btn {
+  background-color: #000000;
+  color: #ffffff;
+  border: none;
+  padding: 6px 10px;
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  transition: background-color 0.2s ease;
+  border-radius: 0px;
+}
+
+.od-bar-view-reason-btn:hover {
+  background-color: #333333;
+}

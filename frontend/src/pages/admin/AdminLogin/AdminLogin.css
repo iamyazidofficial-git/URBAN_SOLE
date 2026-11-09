@@ -1,0 +1,341 @@
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Archivo+Narrow:wght@700&display=swap");
+
+/* ===============================
+   SCOPED CONTAINER
+================================ */
+
+.admin-login-container {
+  display: flex;
+  width: 100vw;
+  min-height: 100vh;
+  background-color: #fafafa;
+  font-family: "Inter", sans-serif;
+  box-sizing: border-box;
+}
+
+.admin-login-container * {
+  box-sizing: border-box;
+}
+
+/* ===============================
+   LEFT BANNER
+================================ */
+
+.admin-login-container .admin-login-banner {
+  flex: 0 0 45%;
+  background-color: #050505;
+  background-image: url("https://images.unsplash.com/photo-1552346154-21d32810aba3?q=80&w=1200&auto=format&fit=crop");
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-login-container .banner-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.75) 0%,
+    rgba(0, 0, 0, 0.85) 50%,
+    rgba(0, 0, 0, 0.95) 100%
+  );
+  padding: 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: #ffffff;
+}
+
+.admin-login-container .banner-logo {
+  font-family: "Archivo Narrow", sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+.admin-login-container .banner-center-content {
+  max-width: 400px;
+}
+
+.admin-login-container .banner-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.admin-login-container .banner-bar {
+  width: 4px;
+  height: 24px;
+  background-color: #ffffff;
+}
+
+.admin-login-container .banner-title {
+  font-family: "Archivo Narrow", sans-serif;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  margin: 0;
+}
+
+.admin-login-container .banner-description {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #a1a1a1;
+  margin: 0;
+}
+
+.admin-login-container .banner-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #a1a1a1;
+}
+
+.admin-login-container .banner-footer .secure-icon {
+  font-size: 18px;
+}
+
+.admin-login-container .secure-text {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+}
+
+/* ===============================
+   RIGHT FORM SECTION
+================================ */
+
+.admin-login-container .admin-login-form-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: center;
+  padding: 60px 40px;
+  background-color: #fafafa;
+}
+
+.admin-login-container .admin-login-content {
+  width: 100%;
+  max-width: 420px;
+  margin: auto 0;
+}
+
+.admin-login-container .admin-title {
+  font-family: "Archivo Narrow", sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: #000000;
+  margin: 0 0 12px 0;
+}
+
+.admin-login-container .admin-subtitle {
+  font-size: 14px;
+  line-height: 1.5;
+  color: #666666;
+  margin: 0 0 32px 0;
+}
+
+/* ===============================
+   FORM INPUTS
+================================ */
+
+.admin-login-container .admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 24px;
+}
+
+.admin-login-container .error {
+  color: #dc2626;
+  font-size: 12px;
+  line-height: 1.2;
+  margin-top: 2px;
+  margin-bottom: 8px;
+  padding: 0;
+}
+
+.admin-login-container .input-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background-color: #f7f7f7;
+  border: 1px solid #e2e2e2;
+  transition: border-color 0.2s ease;
+}
+
+.admin-login-container .input-group:focus-within {
+  border-color: #000000;
+}
+
+.admin-login-container .input-icon {
+  padding-left: 16px;
+  color: #555555;
+  font-size: 20px;
+}
+
+.admin-login-container .input-group input {
+  width: 100%;
+  height: 48px;
+  padding: 0 16px 0 12px;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  color: #000000;
+}
+
+.admin-login-container .input-group input::placeholder {
+  color: #666666;
+}
+
+.admin-login-container .toggle-password-btn {
+  background: none;
+  border: none;
+  padding-right: 16px;
+  cursor: pointer;
+  color: #555555;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-login-container .toggle-password-btn span {
+  font-size: 20px;
+}
+
+/* ===============================
+   SUBMIT BUTTON
+================================ */
+
+.admin-login-container .admin-submit-btn {
+  width: 100%;
+  height: 48px;
+  background-color: #000000;
+  color: #ffffff;
+  border: none;
+  font-family: "Inter", sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.admin-login-container .admin-submit-btn:hover {
+  background-color: #222222;
+}
+
+/* ===============================
+   SECURITY NOTICE
+================================ */
+
+.admin-login-container .security-notice-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 18px 20px;
+  background-color: #f5f5f5;
+  border: 1px solid #e2e2e2;
+}
+
+.admin-login-container .lock-icon {
+  font-size: 20px;
+  color: #000000;
+  margin-top: 2px;
+}
+
+.admin-login-container .security-text-content h4 {
+  margin: 0 0 4px 0;
+  font-size: 13px;
+  font-weight: 700;
+  color: #000000;
+}
+
+.admin-login-container .security-text-content p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #666666;
+}
+
+/* ===============================
+   FOOTER
+================================ */
+
+.admin-login-container .admin-login-footer {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: #cccccc;
+  text-transform: uppercase;
+}
+
+/* ===============================
+   RESPONSIVE
+================================ */
+
+@media (max-width: 900px) {
+  .admin-login-container {
+    flex-direction: column;
+  }
+
+  .admin-login-container .admin-login-banner {
+    flex: none;
+    height: 280px;
+  }
+
+  .admin-login-container .admin-login-form-wrapper {
+    padding: 40px 20px;
+  }
+}
+
+.form-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  margin: 12px 0;
+  padding: 11px 14px;
+
+  background: #fff4f4;
+  border: 1px solid #f3b5b5;
+  border-left: 4px solid #d93025;
+
+  color: #c62828;
+  font-size: 14px;
+  font-weight: 500;
+
+  border-radius: 6px;
+
+  animation: errorSlide 0.25s ease;
+}
+
+@keyframes errorSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.admin-server-error {
+  padding: 12px;
+  margin-bottom: 16px;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  background-color: #fef2f2;
+  color: #b91c1c;
+  font-size: 14px;
+}

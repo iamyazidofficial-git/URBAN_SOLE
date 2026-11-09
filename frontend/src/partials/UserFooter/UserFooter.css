@@ -1,0 +1,146 @@
+/* Main Footer Container */
+.us-footer {
+  background-color: #000000;
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  width: 100%;
+  padding-top: 80px;
+  box-sizing: border-box;
+}
+
+/* Inner Grid Wrapper */
+.us-footer-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 64px 60px 64px;
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+  gap: 40px;
+}
+
+/* Brand Column Styles */
+.us-footer-brand-col {
+  max-width: 380px;
+}
+
+.us-footer-logo {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0 0 16px 0;
+  color: #ffffff;
+}
+
+.us-footer-desc {
+  font-size: 14px;
+  line-height: 22px;
+  color: #8c8c8c;
+  margin: 0;
+}
+
+/* Links Columns Styles */
+.us-footer-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.us-footer-heading {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: #ffffff;
+  margin: 0 0 20px 0;
+  text-transform: uppercase;
+}
+
+.us-footer-links-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.us-footer-links-list li a {
+  font-size: 14px;
+  color: #8c8c8c;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.us-footer-links-list li a:hover {
+  color: #ffffff;
+}
+
+
+
+/* Responsive Media Queries */
+@media (max-width: 1024px) {
+  .us-footer-container {
+    grid-template-columns: 1fr 1fr;
+    gap: 40px;
+    padding: 0 32px 40px 32px;
+  }
+  .us-footer-bottom-container {
+    padding: 0 32px;
+  }
+}
+
+@media (max-width: 640px) {
+  .us-footer-container {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding: 0 20px 32px 20px;
+  }
+  .us-footer-bottom-container {
+    padding: 0 20px;
+    flex-direction: column;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .us-footer-legal {
+    gap: 20px;
+  }
+}
+/* Bottom Sub-footer Row */
+.us-footer-bottom {
+  border-top: 1px solid #1f1f1f;
+  padding: 24px 0;
+}
+
+.us-footer-bottom-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 64px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.us-footer-copy {
+  font-size: 11px; /* 12px-ൽ നിന്ന് ചെറുതാക്കി */
+  color: #666666;
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
+.us-footer-legal {
+  display: flex;
+  gap: 32px;
+}
+
+.us-footer-legal a {
+  font-size: 10px; /* 12px-ൽ നിന്ന് ചെറുതാക്കി */
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: #8c8c8c;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.us-footer-legal a:hover {
+  color: #ffffff;
+}

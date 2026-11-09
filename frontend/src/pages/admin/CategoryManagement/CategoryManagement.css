@@ -1,0 +1,544 @@
+/* Main Container with increased top spacing and sidebar offset */
+.category-management-container {
+  padding: 40px;
+  background-color: #f8f9fa;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #222;
+  box-sizing: border-box;
+  position: relative;
+  margin-top: 10px; /* Remove top margin if the sidebar handles top positioning */
+  margin-left: 260px; /* Adjust this value to match your AdminSidebar's exact width */
+}
+
+/* Header styling */
+.content-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 28px;
+}
+
+.content-header h2 {
+ font-size: 26px; /* Increased from 20px to make it larger/taller */
+  font-weight: 700;
+  line-height: 1.2; /* Ensures proper height ratio */
+  letter-spacing: -0.01em;
+  margin: 0 0 6px 0;
+  color: #000000;
+}
+
+.content-header p {
+  font-size: 14px;
+  color: #666666;
+  margin: 0;
+}
+
+.add-category-main-btn {
+  background-color: #000000;
+  color: #ffffff;
+  border: none;
+  height: 44px; /* Set a specific height */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px; /* Horizontal padding only */
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.add-category-main-btn:hover {
+  background-color: #333333;
+}
+
+/* Table Card styling */
+.table-card {
+  background: #ffffff;
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  overflow: hidden;
+}
+
+.category-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.category-table th {
+  background-color: #fafafa;
+  color: #666666;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 14px 20px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.category-table td {
+  padding: 16px 20px;
+  font-size: 14px;
+  color: #000000;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.category-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.category-table tbody tr:hover {
+  background-color: #fafafa;
+}
+
+/* Offer Badges */
+.offer-badge {
+  background-color: #f1f3f5;
+  color: #333333;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.offer-plus {
+  font-size: 16px;
+  color: #888888;
+  font-weight: bold;
+}
+
+/* Status Badges */
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.status-badge.active {
+  background-color: #e6f4ea;
+  color: #137333;
+}
+
+.status-badge.inactive {
+  background-color: #fce8e6;
+  color: #c5221f;
+}
+
+/* Action Buttons with Lucide Icons */
+/* Minimalist Action Buttons without box border */
+.action-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 4px;
+  color: #555555;
+  margin-right: 4px;
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+  background: #f0f0f0;
+  color: #000000;
+}
+
+.action-btn.delete-action:hover {
+  background: #fce8e6;
+  color: #c5221f;
+}
+
+/* Table Footer / Pagination */
+.table-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background-color: #ffffff;
+  border-top: 1px solid #e5e5e5;
+  font-size: 13px;
+  color: #666666;
+}
+
+.pagination {
+  display: flex;
+  gap: 5px;
+}
+
+.page-btn {
+  background: #ffffff;
+  border: 1px solid #d6d6d6;
+  padding: 5px 10px;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.page-btn.active {
+  background: #000000;
+  color: #ffffff;
+  border-color: #000000;
+}
+
+.page-btn.disabled {
+  color: #aaaaaa;
+  border-color: #eeeeee;
+  cursor: not-allowed;
+}
+
+/* Modal Styling */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+  backdrop-filter: blur(2px);
+  animation: modalFadeIn 0.2s ease;
+}
+
+.modal-card {
+  width: 100%;
+  max-width: 500px;
+  background: #ffffff;
+  padding: 32px;
+  margin: 0 16px;
+  border: 1px solid #e5e5e5;
+  border-radius: 4px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.15);
+  box-sizing: border-box;
+  animation: modalSlideUp 0.25s ease;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-header {
+  margin-bottom: 20px;
+}
+
+.modal-header h3 {
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #000000;
+}
+
+.modal-header p {
+  margin: 0;
+  font-size: 14px;
+  color: #666666;
+}
+
+/* Form Styles */
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #333333;
+  margin-bottom: 6px;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #d6d6d6;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #333333;
+  background-color: #ffffff;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  border-color: #000000;
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.form-row {
+  display: flex;
+  gap: 15px;
+}
+
+.form-group.half {
+  flex: 1;
+}
+/* Modal Footer Action Buttons */
+.modal-actions {
+  display: flex;
+  width: 100%;
+  gap: 12px;
+  margin-top: 25px;
+  border-top: 1px solid #e5e5e5;
+  padding-top: 15px;
+}
+
+/* Target the buttons directly with explicit sizing */
+.modal-actions .cancel-btn,
+.modal-actions .submit-btn {
+  flex: 1 !important;
+  width: 50% !important;
+  height: 42px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box !important;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+/* Cancel Button Styling */
+.modal-actions .cancel-btn {
+  background: #ffffff;
+  border: 1px solid #d6d6d6;
+  color: #333333;
+}
+
+.modal-actions .cancel-btn:hover {
+  background: #f7f7f7;
+  border-color: #111111;
+}
+
+/* Submit Button Styling */
+.modal-actions .submit-btn {
+  background: #000000;
+  border: 1px solid #000000;
+  color: #ffffff;
+}
+
+.modal-actions .submit-btn:hover {
+  background: #333333;
+  border-color: #333333;
+}
+/* Page Admin Footer */
+.page-admin-footer {
+  text-align: center;
+  padding: 30px 0 10px;
+  font-size: 13px;
+  color: #666666;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  margin-top: 20px;
+}
+.error-message {
+  margin: 5px 0 0 0;
+  color: #d93025;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.form-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  margin: 0px 0 12px 0;
+  padding: 11px 14px;
+
+  background: #fff4f4;
+  border: 1px solid #f3b5b5;
+  border-left: 4px solid #d93025;
+
+  color: #c62828;
+  font-size: 14px;
+  font-weight: 500;
+
+  border-radius: 6px;
+
+  animation: errorSlide 0.25s ease;
+}
+
+@keyframes errorSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-5px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Toggle Switch */
+.custom-toggle {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-right: 5px;
+}
+
+.custom-toggle input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* Toggle Track */
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #ffffff;
+  border: 1px solid #bdbdbd;
+  border-radius: 20px;
+  transition: background-color 0.25s ease,
+              border-color 0.25s ease;
+}
+
+/* Toggle Knob */
+.toggle-slider::before {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  left: 2px;
+  top: 2px;
+  background-color: #777777;
+  border-radius: 50%;
+  transition: transform 0.25s ease,
+              background-color 0.25s ease;
+}
+
+/* Active State */
+.custom-toggle input:checked + .toggle-slider {
+  background-color: #000000;
+  border-color: #000000;
+}
+
+.custom-toggle input:checked + .toggle-slider::before {
+  background-color: #ffffff;
+  transform: translateX(16px);
+}
+
+/* Keyboard Accessibility */
+.custom-toggle input:focus-visible + .toggle-slider {
+  outline: 2px solid #666666;
+  outline-offset: 3px;
+}
+
+/* Disabled State */
+.custom-toggle input:disabled + .toggle-slider {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+/* ================= DELETE CONFIRMATION MODAL ================= */
+
+.delete-modal {
+  background-color: #ffffff;
+  width: 100%;
+  max-width: 400px;
+  padding: 30px;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+}
+
+.delete-icon {
+  width: 48px;
+  height: 48px;
+  background-color: #fde8e8;
+  color: #d93838;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin: 0 auto 16px auto;
+}
+
+.delete-modal h2 {
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.delete-modal p {
+  font-size: 0.85rem;
+  color: #666666;
+  margin-bottom: 12px;
+}
+
+.delete-address-preview {
+  background-color: #f8f8f8;
+  padding: 12px;
+  border-radius: 4px;
+  font-weight: 600;
+  color: #222222 !important;
+  margin-bottom: 24px !important;
+}
+
+.delete-confirm-btn {
+  background-color: #d93838;
+  color: #ffffff;
+  border: none;
+  padding: 10px 18px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.delete-confirm-btn:hover {
+  opacity: 0.85;
+}
+.category-search-container {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 10px;
+}

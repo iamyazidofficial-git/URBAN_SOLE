@@ -1,0 +1,170 @@
+/* ================= MY ORDERS PAGE CSS (Exact Image Match) ================= */
+
+.us-orders-container {
+  max-width: 1100px;
+  margin: 0 auto 60px auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.us-orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Order Card Wrapper matching the screenshot */
+.us-order-card {
+  background: #f7f5f5; /* Light greyish background matching image */
+  border: 1px solid #cfc4c5;
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border-radius: 0px;
+}
+
+/* Product Image Box */
+.us-order-img-box {
+  width: 120px;
+  height: 120px;
+  background-color: #e5e2e2;
+  border: 1px solid #cfc4c5;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.us-order-img-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  mix-blend-mode: multiply;
+}
+
+/* Center Content */
+.us-order-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.us-order-id-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: #5d5f5f;
+  letter-spacing: 0.05em;
+}
+
+.us-product-name {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 22px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin: 0;
+  color: #1b1c1c;
+  letter-spacing: -0.01em;
+}
+
+.us-purchase-date {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: #5d5f5f;
+  margin: 0 0 4px 0;
+}
+
+.us-product-price {
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1b1c1c;
+}
+
+/* Right Section: Status Badge & Button */
+.us-order-right-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 100%;
+  min-height: 100px;
+  flex-shrink: 0;
+}
+
+.us-order-status-badge {
+  font-family: 'Inter', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 6px 14px;
+  background-color: #e2dfdf;
+  color: #5d5f5f;
+  border: 1px solid #cfc4c5;
+  border-radius: 0px;
+}
+
+/* Status variants matching the image style */
+.us-order-status-badge.shipped {
+  background-color: #e5e2e2;
+  color: #4b4d4d;
+}
+
+.us-order-status-badge.delivered {
+  background-color: #e5e2e2;
+  color: #4b4d4d;
+}
+
+.us-order-status-badge.out-of-delivery {
+  background-color: #e5e2e2;
+  color: #4b4d4d;
+}
+
+/* View Details Button */
+.us-btn-view-details {
+  background-color: #ffffff;
+  color: #1b1c1c;
+  border: 1px solid #cfc4c5;
+  padding: 10px 24px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+  border-radius: 0px;
+}
+
+.us-btn-view-details:hover {
+  background-color: #000000;
+  color: #ffffff;
+  border-color: #000000;
+}
+
+/* Responsive adjustments for mobile devices */
+@media (max-width: 768px) {
+  .us-order-card {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px;
+  }
+
+  .us-order-right-section {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    min-height: auto;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #cfc4c5;
+  }
+
+  .us-order-img-box {
+    width: 100px;
+    height: 100px;
+  }
+}
