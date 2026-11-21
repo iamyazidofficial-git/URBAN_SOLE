@@ -83,6 +83,7 @@ export default function Wishlist() {
       // Remove from wishlist after successfully adding to cart
       dispatch(removeFromWishlist(selectedProductForCart._id));
     } catch (error) {
+      
       console.log("Failed to move item to cart:", error);
     } finally {
       setSelectedProductForCart(null);

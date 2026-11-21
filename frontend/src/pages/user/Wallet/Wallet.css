@@ -1,0 +1,300 @@
+/* Google Fonts Import */
+@import url('https://fonts.googleapis.com/css2?family=Archivo+Narrow:ital,wght@0,400..700;1,400..700&family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+
+/* Global Reset & Base Setup */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: #FFFFFF;
+  color: #1b1c1c;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.us-wallet-page {
+  background-color: #FFFFFF;
+  color: #1b1c1c;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Main Layout Structure */
+.us-main-content {
+  flex-grow: 1;
+  padding-top: 128px; /* pt-32 */
+  padding-bottom: 96px; /* pb-24 */
+  padding-left: 20px;
+  padding-right: 20px;
+  max-width: 1536px; /* max-w-screen-2xl */
+  margin-left: auto;
+  margin-right: auto;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .us-main-content {
+    padding-left: 64px;
+    padding-right: 64px;
+  }
+}
+
+/* Page Header */
+.us-page-header {
+  margin-bottom: 64px;
+  text-align: center;
+  max-width: 42rem;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.us-page-title {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 40px;
+  line-height: 44px;
+  font-weight: 700;
+  color: #000000;
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+}
+
+@media (min-width: 768px) {
+  .us-page-title {
+    font-size: 56px;
+    line-height: 64px;
+  }
+}
+
+.us-page-subtitle {
+  font-family: 'Inter', sans-serif;
+  font-size: 18px;
+  line-height: 28px;
+  color: #5d5f5f;
+}
+
+/* Grid & Balance Card Section */
+.us-wallet-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 48px;
+}
+
+.us-balance-section {
+  background-color: #f5f3f3; /* surface-container-low */
+  border: 1px solid #cfc4c5; /* outline-variant */
+  padding: 48px 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 240px;
+  align-items: center;
+}
+
+.us-balance-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: #5d5f5f;
+  margin-bottom: 8px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.us-balance-amount {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 80px;
+  line-height: 88px;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+  color: #000000;
+  text-align: center;
+}
+
+/* Top-up Form Elements (Input & Button side-by-side matching screenshot) */
+.us-topup-form {
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 0; /* Remove gap so input and button connect tightly if needed, or keep clean */
+  width: 100%;
+  max-width: 32rem;
+  justify-content: center;
+  align-items: center;
+}
+
+@media (min-width: 640px) {
+  .us-topup-form {
+    flex-direction: row;
+  }
+}
+
+.us-amount-input {
+  border: 1px solid #cfc4c5;
+  padding: 14px 16px;
+  background-color: #ffffff;
+  width: 100%;
+  outline: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: #1b1c1c;
+}
+
+.us-amount-input:focus {
+  border-color: #000000;
+}
+
+.us-amount-input::placeholder {
+  color: #7e7576;
+}
+
+.us-add-fund-btn {
+  background-color: #000000;
+  color: #ffffff;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  padding: 14px 32px;
+  width: 100%;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .us-add-fund-btn {
+    width: auto;
+  }
+}
+
+.us-add-fund-btn:hover {
+  background-color: #303031;
+}
+
+.us-add-fund-btn:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
+/* Recent Activity Section */
+.us-activity-section {
+  margin-top: 48px;
+}
+
+.us-activity-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 24px;
+  border-bottom: 1px solid #cfc4c5;
+  padding-bottom: 8px;
+}
+
+.us-activity-title {
+  font-family: 'Archivo Narrow', sans-serif;
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 700;
+  color: #000000;
+  text-transform: uppercase;
+}
+
+/* Transaction Table */
+.us-activity-table-container {
+  overflow-x: auto;
+}
+
+.us-activity-table {
+  width: 100%;
+  text-align: left;
+  border-collapse: collapse;
+}
+
+.us-table-header-row {
+  border-bottom: 1px solid #cfc4c5;
+}
+
+.us-th {
+  padding-top: 16px;
+  padding-bottom: 16px;
+  padding-right: 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+  font-weight: 400;
+  color: #5d5f5f;
+  text-transform: uppercase;
+}
+
+.us-table-row {
+  border-bottom: 1px solid #cfc4c5;
+}
+
+.us-table-row:last-child {
+  border-bottom: none;
+}
+
+.us-td-date {
+  padding-top: 24px;
+  padding-bottom: 24px;
+  padding-right: 16px;
+  color: #5d5f5f;
+  font-size: 16px;
+  width: 25%;
+  vertical-align: middle;
+}
+
+.us-td-desc {
+  padding-top: 24px;
+  padding-bottom: 24px;
+  padding-left: 16px;
+  padding-right: 16px;
+  width: 50%;
+  vertical-align: middle;
+}
+
+.us-tx-main-text {
+  font-weight: 700;
+  color: #000000;
+  font-size: 16px;
+  margin-bottom: 2px;
+}
+
+.us-tx-sub-text {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: #5d5f5f;
+}
+
+.us-td-amount {
+  padding-top: 24px;
+  padding-bottom: 24px;
+  padding-left: 16px;
+  text-align: right;
+  font-size: 16px;
+  font-weight: 400;
+  width: 25%;
+  vertical-align: middle;
+}
+
+.us-amount-credit {
+  color: #5e5e5e; 
+}
+
+.us-amount-debit {
+  color: #1b1c1c; 
+}
+
+.us-empty-row {
+  text-align: center;
+  padding: 32px;
+  color: #5d5f5f;
+}

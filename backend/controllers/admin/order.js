@@ -45,6 +45,7 @@ const toggleStatus=async(req,res)=>{
             message:"Order Status Changed"
         })
     }catch(error){
+        console.log(error)
            return res.status(STATUS_CODES.BAD_REQUEST).json({
             success:false,
             message:error?.message||"Something went wrong"

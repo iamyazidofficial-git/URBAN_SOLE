@@ -64,8 +64,30 @@ const Orders = () => {
                                                 <span className="us-more-items-tag"> +{order.items.length - 1} more</span>
                                             )}
                                         </h3>
-                                        <p className="us-purchase-date">Purchased on {orderDate}</p>
-                                        <span className="us-product-price">₹{totalAmount}</span>
+<p className="us-purchase-date">
+        {orderStatus === "Delivered" && `Purchased on ${orderDate}`}
+
+        {orderStatus === "Cancelled" && order.cancellation?.at && 
+            `Cancelled at ${new Date(order.cancellation.at).toLocaleDateString()}`}
+
+        {orderStatus === "RETURNED" && order.returnInfo?.returnedAt && 
+            `Returned at ${new Date(order.returnInfo.returnedAt).toLocaleDateString()}`}
+
+        {orderStatus === "RETURN_REQUESTED" && order.returnInfo?.requestedAt && 
+            `Return requested at ${new Date(order.returnInfo.requestedAt).toLocaleDateString()}`}
+
+        {orderStatus === "RETURN_APPROVED" && order.approvedAt && 
+            `Return approved at ${new Date(order.approvedAt).toLocaleDateString()}`}
+
+        {orderStatus === "RETURN_REJECTED" && 
+            `Return rejected by admin: ${order.returnInfo?.rejectionReason || "Reason not provided"}`}
+
+        {(orderStatus === "PLACED" || orderStatus === "SHIPPED" || orderStatus === "OUT_OF_DELIVERY") && (() => {
+            const createdDate = new Date(order.createdAt);
+            createdDate.setDate(createdDate.getDate() + 5);
+            return `Estimated delivery expected on ${createdDate.toLocaleDateString()}`;
+        })()}
+    </p>                                        <span className="us-product-price">₹{totalAmount}</span>
                                     </div>
 
                                     {/* Right: Status Badge & View Details Button */}

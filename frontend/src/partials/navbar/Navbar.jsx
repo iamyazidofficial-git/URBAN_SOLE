@@ -238,7 +238,9 @@ useEffect(() => {
 
                     <button
                       className="account-menu-item"
-                      onClick={() => setShowAccount(false)}
+                      onClick={() => {setShowAccount(false);
+                        navigate("/user/reviews")
+                      }}
                     >
                       <span className="material-symbols-outlined">reviews</span>
                       <span className="account-menu-title">MY REVIEWS</span>
@@ -261,7 +263,7 @@ useEffect(() => {
                       className="account-menu-item"
                       onClick={() => {
                         setShowAccount(false);
-                        navigate("/wallet");
+                        navigate("/user/wallet");
                       }}
                     >
                       <span className="material-symbols-outlined">account_balance_wallet</span>
@@ -271,7 +273,7 @@ useEffect(() => {
 
                     <button
                       className="account-menu-item"
-                      onClick={() => setShowAccount(false)}
+                      onClick={() => {setShowAccount(false);navigate("/user/referrals")}}
                     >
                       <span className="material-symbols-outlined">redeem</span>
                       <span className="account-menu-title">REFER & EARN</span>

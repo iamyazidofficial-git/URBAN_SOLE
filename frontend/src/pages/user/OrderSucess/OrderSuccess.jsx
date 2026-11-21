@@ -1,10 +1,12 @@
 import React from 'react';
 import './OrderSuccess.css';
 import { useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 
 const OrderSuccess = () => {
     const location=useLocation()
-    const {orderId,estimatedDelivery}=location?.state
+    const {orderId,estimatedDelivery,_id}=location?.state
+    const navigate=useNavigate()
   return (
     <div className="order-success-container">
       <div className="order-success-card">
@@ -49,6 +51,7 @@ Thank you for shopping with Urban Sole. Order ID:{orderId}</p>
           <button 
             type="button" 
             className="btn btn-primary"
+            onClick={()=>navigate(`/user/trackOrder`,{state:{orderId:_id}})}
           >
             View Order Details
           </button>
@@ -56,6 +59,7 @@ Thank you for shopping with Urban Sole. Order ID:{orderId}</p>
           <button 
             type="button" 
             className="btn btn-secondary"
+            onClick={()=>navigate("/user/home",{replace:true})}
           >
             Continue Shopping
           </button>

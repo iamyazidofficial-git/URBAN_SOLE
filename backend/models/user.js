@@ -57,7 +57,18 @@ const userSchema = new mongoose.Schema(
         isVerified:{
             type: Boolean,
             default:false
-        }
+        },
+          referredBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        index: true
+      },
+      
+      isReferralRewarded: {
+        type: Boolean,
+        default: false,
+        index: true
+      }
     },
     {
         timestamps: true

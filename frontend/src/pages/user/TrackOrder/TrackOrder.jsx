@@ -2,10 +2,11 @@ import React, { useState,useEffect } from 'react';
 import './TrackOrder.css';
 import Navbar from "../../../partials/navbar/navbar";
 import UserFooter from '../../../partials/UserFooter/UserFooter';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axiosInstance from '../../../utils/axiosInstance';
 import { toast, ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
+import Loader from '../../../partials/Loader/Loader';
 
 const TrackOrder = () => {
   const [order,setOrder]=useState([])
@@ -19,9 +20,26 @@ const TrackOrder = () => {
   const [returnId,setReturnId]=useState("")
   const[isReasonModalOpen,setIsReasonModalOpen]=useState(false)
   const[reasonItem,setReasonItem]=useState("")
+  const [loading,setLoading]=useState(false)
+  const [reviewModalOpen,setReviewModalOpen]=useState(false)
+  const [reviewItem,setReviewItem]=useState("")
+  const [reviewTitle,setReviewTitle]=useState("")
+  const [reviewComment,setReviewComment]=useState("")
+  const [reviewRating,setReviewRating]=useState("")
+  const [reviewHoverRating,setReviewHoverRating]=useState(0)
 
   const location=useLocation()
   const orderId=location.state?.orderId
+
+   console.log("ORDER ID FROM LOCATION:", orderId);
+   console.log("YESSS")
+
+  if (!orderId) {
+    console.log("Order ID is missing");
+    return;
+  }
+
+  const navigate=useNavigate()
 
 
   const fetchTrackOrder=async()=>{
@@ -100,6 +118,177 @@ const TrackOrder = () => {
 
 
 
+
+
+  const handleRetryPayment = async () => {
+  const targetId = order?._id || orderId;
+  if (!targetId) {
+    toast.error("Order details not found!");
+    return;
+  }
+
+  try {
+    setLoading(true);
+    const res = await axiosInstance.post("/user/checkout/retry-payment", {
+      _id: order?._id,
+      orderId: order?.orderId || orderId,
+    });
+
+    if (res.data?.success) {
+      const { razorpayOrder, customerSnapshot, _id: dbOrderId, orderId: customOrderId } = res.data.data;
+
+      const options = {
+        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+        name: "URBAN SOLE",
+        description: "Retry Purchase Payment",
+        order_id: razorpayOrder.id,
+        handler: async function (response) {
+          try {
+            const verifyRes = await axiosInstance.post("/user/checkout/verify-payment", {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              orderId: dbOrderId || order?._id, // MongoDB _id അയക്കുക
+            });
+
+            if (verifyRes.data.success) {
+              const baseDate = order?.createdAt ? new Date(order.createdAt) : new Date();
+              const deliveryDate = new Date(baseDate);
+              deliveryDate.setDate(deliveryDate.getDate() + 5);
+
+              const startDay = String(baseDate.getDate()).padStart(2, "0");
+              const endDay = String(deliveryDate.getDate()).padStart(2, "0");
+              const month = deliveryDate.toLocaleString("en-US", { month: "short" }).toUpperCase();
+              const year = deliveryDate.getFullYear();
+
+              const formattedEstimatedDelivery = `${startDay}–${endDay} ${month} ${year}`;
+
+              toast.success("Payment successful!");
+              navigate("/user/checkout/orderSuccess", {
+                replace: true,
+                state: {
+                  orderId: customOrderId || order?.orderId,
+                  _id:order?.orderId,
+                  estimatedDelivery: formattedEstimatedDelivery,
+                },
+              });
+            }
+          } catch (error) {
+            toast.error("Payment verification failed");
+            navigate("/user/paymentFailed", {
+              replace: true,
+              state: {
+                orderId: customOrderId || order?.orderId,
+                _id: dbOrderId || order?._id,
+              },
+            });
+          }
+        },
+        modal: {
+          ondismiss: function () {
+            toast.error("Payment cancelled");
+            navigate("/user/paymentFailed", {
+              replace: true,
+              state: {
+                orderId: customOrderId || order?.orderId,
+                _id: dbOrderId || order?._id,
+                items: order?.items,
+              },
+            });
+          },
+        },
+        prefill: {
+          name: customerSnapshot?.name || "",
+          email: customerSnapshot?.email || "",
+        },
+        theme: {
+          color: "#000000",
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    }
+  } catch (error) {
+    console.error("FULL VERIFICATION ERROR:", error);
+    console.error("RESPONSE DATA:", error?.response?.data);
+    toast.error(error?.response?.data?.message || "Could not retry payment");
+  } finally {
+    setLoading(false);
+  }
+};
+
+
+
+    const reviewSubmit=async(e)=>{
+      e.preventDefault()
+      console.log("RRLLLLFF",reviewItem)
+      try{
+          setLoading(true);
+
+        if (!reviewRating || reviewRating === "") {
+    toast.error("Please select a rating");
+    return;
+  }
+
+  const cleanTitle = reviewTitle.trim();
+  const letterCountInTitle = (cleanTitle.match(/[a-zA-Z]/g) || []).length;
+
+  if (!cleanTitle || cleanTitle.length === 0) {
+    toast.error("Review title is Required");
+    return;
+  }
+  if (letterCountInTitle < 4) {
+    toast.error("Review title must contain at least 4 letters");
+    return;
+  }
+  if (!/^[a-zA-Z ]+$/.test(cleanTitle)) {
+    toast.error("Review title must contain only letters");
+    return;
+  }
+
+  // 3. Review Comment Validations
+  const cleanComment = reviewComment.trim();
+  const nonSpaceCharsInComment = cleanComment.replace(/\s/g, "").length;
+
+  if (!cleanComment || cleanComment.length === 0) {
+    toast.error("Review comment cannot be empty or full spaces");
+    return;
+  }
+  if (nonSpaceCharsInComment < 10) {
+    toast.error("Review comment must contain at least 10 characters");
+    return;
+  }
+
+
+    const response = await axiosInstance.post("/user/review/addReview", {
+      product: reviewItem.product,
+      rating: Number(reviewRating),
+      title: cleanTitle,
+      comment: cleanComment
+    });
+
+    if (response.data?.success) {
+      toast.success("Review submitted successfully!")
+      setReviewItem("")
+      setReviewComment("")
+      setReviewTitle("")
+      setReviewHoverRating(0)
+      setReviewModalOpen(false)
+    }
+
+      }catch(error){
+        console.log(error)
+        toast.error(error?.response?.data?.message)
+      }finally{
+        setLoading(false)
+      }
+    }
+
+
+
   useEffect(()=>{
     fetchTrackOrder()
   },[])
@@ -107,6 +296,7 @@ const TrackOrder = () => {
   return (
     <div className="us-page-wrapper">
       <Navbar />
+      {loading&&(<Loader/>)}
       <div className="us-main-content">
         
         {/* Page Header */}
@@ -160,17 +350,17 @@ const TrackOrder = () => {
                       <img src={item.image} alt={item.name} />
                     </div>
                     <div className="to-prod-details">
-                      <h3 className="to-prod-name">{item.name}</h3>
-                      <p className="to-prod-specs">SIZE: {item.size}</p>
-                      <p className="to-prod-specs">QTY: {item.quantity}</p>
+                      <h3 className="to-prod-name">{item.productName}</h3>
+                      <p className="to-prod-specs">SIZE: {item.size} / QUANTITY: {item.quantity}</p>
+                      <p className="to-prod-specs"></p>
                       
                       <div className="to-prod-action-buttons">
 
-  <button className="to-btn-black">
-    {["DELIVERED", "RETURN_REQUESTED", "RETURN_REJECTED", "RETURN_APPROVED"].includes(order?.orderStatus)
-      ? "Write Review"
-      : "View Product"}
-  </button>
+ 
+    {["DELIVERED", "RETURN_REQUESTED", "RETURN_REJECTED", "RETURN_APPROVED","RETURNED"].includes(order?.orderStatus)&&(
+       <button className="to-btn-black" onClick={()=>{setReviewModalOpen(true);setReviewItem(item)}}>Write Review</button>
+      )}
+
                        {["CANCELLED", "RETURNED"].includes(order.orderStatus) ? null :
 
   item.status === "CANCELLED" ? (
@@ -181,6 +371,11 @@ const TrackOrder = () => {
   ) : item.status === "RETURN_REQUESTED" ? (
     <span className="to-status-text-badge return-requested">
       Return Requested
+    </span>
+
+  ) : item.status === "PENDING" ? (
+    <span className="to-status-text-badge return-requested">
+      PENDING
     </span>
 
   ) : item.status === "RETURN_REJECTED" ? (
@@ -224,7 +419,7 @@ const TrackOrder = () => {
       RETURN PRODUCT
     </button>
 
-  ) : (
+  ) :item.status!="PENDING" && (
     <button
       className="to-btn-outline"
       onClick={() => {
@@ -457,6 +652,10 @@ const TrackOrder = () => {
               ) :  order.orderStatus === "DELIVERED" ? (
                 <button className="to-btn-bottom" onClick={() => { setIsReturnModalOpen(true); setReturnId(orderId); }}>RETURN ENTIRE ORDER</button>
 
+              ) :
+               order.orderStatus === "PENDING" ? (
+                <button className="to-btn-bottom" onClick={handleRetryPayment}>RETRY PAYMENT</button>
+
               ) : 
               (
                 <button className="to-btn-bottom" onClick={() => { setIsCancelModalOpen(true); setCancellationId(orderId); }}>CANCEL ENTIRE ORDER</button>
@@ -651,6 +850,92 @@ const TrackOrder = () => {
       </div>
     </div>
   </div>
+)}
+
+
+
+
+
+
+
+{reviewModalOpen==true &&(
+  <div className="urm-modal-overlay">
+      <div className="urm-modal-card">
+        
+        {/* Close Button */}
+        <button className="urm-close-btn" onClick={()=>{setReviewModalOpen(false);setReviewComment("");setReviewTitle("");setReviewHoverRating("");setReviewRating(0)}}>&times;</button>
+
+        <div className="urm-header">
+          <h2 className="urm-title">WRITE A REVIEW</h2>
+          <p className="urm-subtitle">Share your experience with other customers.</p>
+        </div>
+
+        {/* Product Preview Box */}
+        {reviewItem && (
+          <div className="urm-product-box">
+            <div className="urm-img-box">
+              <img src={reviewItem.image} />
+            </div>
+            <div className="urm-prod-info">
+              <h3 className="urm-prod-name">{reviewItem.productName}</h3>
+            </div>
+          </div>
+        )}
+
+        <form onSubmit={reviewSubmit}>
+          {/* Overall Rating Stars */}
+          <div className="urm-rating-section">
+            <label className="urm-label">OVERALL RATING</label>
+            <div className="urm-stars-container">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <span
+                  key={star}
+                  className={`urm-star ${star <= (reviewHoverRating || reviewRating) ? 'filled' : ''}`}
+                  onClick={() => setReviewRating(star)}
+onMouseEnter={() => setReviewHoverRating(star)}
+onMouseLeave={() => setReviewHoverRating(0)}
+                >
+                  ★
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Review Title */}
+          <div className="urm-field-group">
+            <label className="urm-label">REVIEW TITLE</label>
+            <input
+              type="text"
+              className="urm-input"
+              placeholder="Sum up your experience"
+              value={reviewTitle}
+              onChange={(e) => setReviewTitle(e.target.value)}
+              maxLength={60}
+              required
+            />
+          </div>
+
+          {/* Detailed Review */}
+          <div className="urm-field-group">
+            <label className="urm-label">DETAILED REVIEW</label>
+            <textarea
+              className="urm-textarea"
+              placeholder="What did you like or dislike? How did it fit?"
+              value={reviewComment}
+              onChange={(e) => setReviewComment(e.target.value)}
+              rows={4}
+              required
+            ></textarea>
+          </div>
+
+          {/* Submit Button */}
+          <button type="submit" className="urm-submit-btn" disabled={loading}>
+            {loading ? "SUBMITTING..." : "SUBMIT REVIEW"}
+          </button>
+        </form>
+
+      </div>
+    </div>
 )}
 
 

@@ -94,7 +94,7 @@ const orderData = cartItems.map((item) => ({
   price: item.price
 }))
 
-console.log("ORDER DATA:", orderData)
+orderData.type="cart"
       navigate("/user/checkout",{state:{
         data:orderData
       }})

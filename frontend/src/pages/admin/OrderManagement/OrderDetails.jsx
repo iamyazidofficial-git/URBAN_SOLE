@@ -10,6 +10,7 @@ const OrderDetails = () => {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [statusModal,setStatusModal]=useState(false)
+  const [itemStatusModal,setItemStatusModal]=useState(false)
   const [selectedStatus,setSelectedStatus]=useState(order?.orderStatus)
   const [cancellationReason,setCancellationReason]=useState("")
   const [reasonError,setReasonError]=useState("")
@@ -150,6 +151,7 @@ const OrderDetails = () => {
             fetchOrderDetails()
             setReasonError("")
             setToggleItem("")
+            setItemStatusModal(false)
         }
 
         }
@@ -174,7 +176,7 @@ const OrderDetails = () => {
 
         const response=await axiosInstance.patch(`/admin/order/toggleItem/${orderId}/${toggleItem.product}`,{status:status,reason:rejectReason})
         if(response?.data?.success==true){
-            setStatusModal(false)
+            setItemStatusModal(false)
             fetchOrderDetails()
             setReasonError("")
             setToggleItem("")
@@ -190,7 +192,7 @@ const OrderDetails = () => {
         const response=await axiosInstance.patch(`/admin/order/toggleItem/${orderId}/${toggleItem.product}`,{status:status})
 
         if(response?.data?.success==true){
-            setStatusModal(false)
+            setItemStatusModal(false)
             fetchOrderDetails()
             setReasonError("")
             setToggleItem("")
@@ -286,9 +288,9 @@ const OrderDetails = () => {
               <span className="material-symbols-outlined">receipt_long</span> Invoice
             </button>
             
-            <button className="od-top-btn od-primary-btn" onClick={() => setStatusModal(true)}>
+           {["PLACED","SHIPPED","OUT_OF_DELIVERY","RETURN_APPROVED"].includes(order.orderStatus)&&(<button className="od-top-btn od-primary-btn" onClick={() => {setStatusModal(true);setSelectedStatus(order.orderStatus)}}>
               Change Status
-            </button>
+            </button>)}
           </div>
 
 
@@ -359,9 +361,9 @@ const OrderDetails = () => {
                   <thead>
                     <tr>
                       <th>PRODUCT</th>
+                      <th>NAME</th>
                       <th>SIZE</th>
                       <th>QTY</th>
-                      <th>PRICE</th>
                       <th>TOTAL</th>
                       <th>ACTION</th>                    
                     </tr>
@@ -374,10 +376,9 @@ const OrderDetails = () => {
                             <img src={item.image} alt={item.name} />
                           </div>
                         </td>
-                       
+                        <td className="od-table-text">{item.productName}</td>
                         <td className="od-table-text">{item.size || 'N/A'}</td>
                         <td className="od-table-text">{item.quantity}</td>
-                        <td className="od-table-text">₹{item.price?.toLocaleString()}</td>
                         <td className="od-table-text od-bold-text">₹{item.itemTotal?.toLocaleString()}</td>
 <td className="od-table-text od-bold-text">
  <div className="od-inline-status-action">
@@ -407,11 +408,12 @@ const OrderDetails = () => {
         View Reason
       </button>
       {/* Edit Pen Icon */}
-      <span 
+      {["PLACED","SHIPPED","OUT_OF_DELIVERY","RETURN_APPROVED"].includes(item.status)&&(<span 
         className="od-inline-pen-icon" 
         onClick={() => {
           setToggleItem(item);
-          setStatusModal(true);
+          setItemStatusModal(true);
+          setSelectedStatus(item.status)
         }}
         title="Update Status"
       >
@@ -419,7 +421,7 @@ const OrderDetails = () => {
           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
         </svg>
-      </span>
+      </span>)}
     </div>
   ) : (
     <>
@@ -428,11 +430,12 @@ const OrderDetails = () => {
       </span>
       
       {/* Edit Pen Icon */}
-      <span 
+      {["PLACED","SHIPPED","OUT_OF_DELIVERY","RETURN_APPROVED"].includes(item.status)&&(<span 
         className="od-inline-pen-icon" 
         onClick={() => {
           setToggleItem(item);
-          setStatusModal(true);
+          setItemStatusModal(true);
+          setSelectedStatus(item.status)
         }}
         title="Update Status"
       >
@@ -440,7 +443,7 @@ const OrderDetails = () => {
           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
         </svg>
-      </span>
+      </span>)}
     </>
   )}
 </div>
@@ -591,64 +594,171 @@ const OrderDetails = () => {
 
 
 
-      {statusModal && (
-        <div className="od-modal-overlay">
-          <div className="od-modal-card">
+     {statusModal && (
+    <div className="od-modal-overlay">
+        <div className="od-modal-card">
             <h3 className="od-modal-title">Update Status</h3>
             <p className="od-modal-subtitle">Select the new status </p>
 
             <div className="od-modal-dropdown-container">
-              <label className="od-modal-label">Order Status</label>
-              <select 
-                className="od-modal-select"
-                value={selectedStatus}
-                onChange={(e) => setSelectedStatus(e.target.value)}
-              >
-                <option value="PENDING">PENDING</option>
-                <option value="PLACED">PLACED</option>
-                <option value="SHIPPED">SHIPPED</option>
-                <option value="OUT_OF_DELIVERY">OUT_OF_DELIVERY</option>
-                <option value="DELIVERED">DELIVERED</option>
-                <option value="CANCELLED">CANCELLED</option>
-                <option value="RETURNED">RETURNED</option>
-              </select>
+                <label className="od-modal-label">Order Status</label>
+                <select 
+    className="od-modal-select"
+    value={selectedStatus}
+    onChange={(e) => setSelectedStatus(e.target.value)}
+>
+    <option value={order.orderStatus} disabled>
+        {order.orderStatus}
+    </option> 
+
+    {order.orderStatus === "PLACED" && (
+        <>
+            <option value="SHIPPED">SHIPPED</option>
+            <option value="OUT_OF_DELIVERY">OUT_OF_DELIVERY</option>
+        </>
+    )}
+
+    {order.orderStatus === "SHIPPED" && (
+        <option value="OUT_OF_DELIVERY">OUT_OF_DELIVERY</option>
+    )}
+
+    {order.orderStatus === "OUT_OF_DELIVERY" && (
+        <option value="DELIVERED">DELIVERED</option>
+    )}
+
+    {order.orderStatus === "RETURN_APPROVED" && (
+        <option value="RETURNED">RETURNED</option>
+    )}
+
+    {["PLACED", "SHIPPED", "OUT_OF_DELIVERY"].includes(order.orderStatus) && (
+        <option value="CANCELLED">CANCELLED</option>
+    )}
+</select>
             </div>
 
-            {(selectedStatus === "CANCELLED" ) && (
-              <div className="od-modal-dropdown-container" style={{ marginTop: '12px' }}>
-                <label className="od-modal-label">Reason (Required)</label>
-                <textarea 
-                  className="od-modal-textarea"
-                  placeholder="Enter reason minimum 15 charecters"
-                  value={cancellationReason}
-                  maxLength={40} 
-                  onChange={(e) => {
-                    setCancellationReason(e.target.value)
-                  }}
-                ></textarea>
-                {reasonError&&<p style={{color:"red"}}>{reasonError}</p>}
-                <div className="od-reason-footer">
+            {(selectedStatus === "CANCELLED") && (
+                <div className="od-modal-dropdown-container" style={{ marginTop: '12px' }}>
+                    <label className="od-modal-label">Reason (Required)</label>
+                    <textarea 
+                        className="od-modal-textarea"
+                        placeholder="Enter reason minimum 15 charecters"
+                        value={cancellationReason}
+                        maxLength={40} 
+                        onChange={(e) => {
+                            setCancellationReason(e.target.value)
+                        }}
+                    ></textarea>
+                    {reasonError && <p style={{color:"red"}}>{reasonError}</p>}
+                    <div className="od-reason-footer">
+                    </div>
                 </div>
-              </div>
             )}
 
             <div className="od-modal-actions">
-              <button 
-                className="od-modal-btn-cancel" 
-                onClick={() => setStatusModal(false)}
-              >
-                Cancel
-              </button>
-              <button 
-                className="od-modal-btn-confirm" 
-                onClick={()=>toggleStatus(selectedStatus)}
-              >
-                Confirm
-              </button>
+                <button 
+                    className="od-modal-btn-cancel" 
+                    onClick={() => setStatusModal(false)}
+                >
+                    Cancel
+                </button>
+                <button 
+                    className="od-modal-btn-confirm" 
+                    onClick={() => toggleStatus(selectedStatus)}
+                >
+                    Confirm
+                </button>
             </div>
-          </div>
         </div>
-      )}
+    </div>
+)}
+
+
+
+
+
+
+
+
+
+
+
+{itemStatusModal && (
+    <div className="od-modal-overlay">
+        <div className="od-modal-card">
+            <h3 className="od-modal-title">Update Status</h3>
+            <p className="od-modal-subtitle">Select the new status </p>
+
+            <div className="od-modal-dropdown-container">
+                <label className="od-modal-label">Item Status</label>
+                <select 
+        className="od-modal-select"
+        value={selectedStatus}
+        onChange={(e) => setSelectedStatus(e.target.value)}
+    >
+        <option value={toggleItem.status} disabled>
+            {toggleItem.status}
+        </option>             
+        
+        {toggleItem.status === "PLACED" && (
+            <>
+                <option value="SHIPPED">SHIPPED</option>
+                <option value="OUT_OF_DELIVERY">OUT_OF_DELIVERY</option>
+            </>
+        )}
+
+        {toggleItem.status === "SHIPPED" && (
+            <option value="OUT_OF_DELIVERY">OUT_OF_DELIVERY</option>
+        )}
+
+        {toggleItem.status === "OUT_OF_DELIVERY" && (
+            <option value="DELIVERED">DELIVERED</option>
+        )}
+
+        {toggleItem.status === "RETURN_APPROVED" && (
+            <option value="RETURNED">RETURNED</option>
+        )}
+
+        {["PLACED", "SHIPPED", "OUT_OF_DELIVERY"].includes(toggleItem.status) && (
+            <option value="CANCELLED">CANCELLED</option>
+        )}
+    </select>
+            </div>
+
+            {(selectedStatus === "CANCELLED") && (
+                <div className="od-modal-dropdown-container" style={{ marginTop: '12px' }}>
+                    <label className="od-modal-label">Reason (Required)</label>
+                    <textarea 
+                        className="od-modal-textarea"
+                        placeholder="Enter reason minimum 15 charecters"
+                        value={cancellationReason}
+                        maxLength={40} 
+                        onChange={(e) => {
+                            setCancellationReason(e.target.value)
+                        }}
+                    ></textarea>
+                    {reasonError && <p style={{color:"red"}}>{reasonError}</p>}
+                    <div className="od-reason-footer">
+                    </div>
+                </div>
+            )}
+
+            <div className="od-modal-actions">
+                <button 
+                    className="od-modal-btn-cancel" 
+                    onClick={() => setItemStatusModal(false)}
+                >
+                    Cancel
+                </button>
+                <button 
+                    className="od-modal-btn-confirm" 
+                    onClick={() => toggleItemStatus(selectedStatus)}
+                >
+                    Confirm
+                </button>
+            </div>
+        </div>
+    </div>
+)}
 
 
 

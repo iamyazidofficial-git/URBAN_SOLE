@@ -24,6 +24,9 @@ const cart=require("./routes/user/cart")
 const wishlist= require("./routes/user/wishlist");
 const checkout=require("./routes/user/checkout")
 const order=require("./routes/user/order")
+const wallet=require("./routes/user/wallet")
+const review=require("./routes/user/review")
+const referral=require("./routes/user/referral.js")
 
 /**************Admin Routes**************/
 
@@ -45,6 +48,9 @@ app.use("/user/cart",cart)
 app.use("/user/wishlist", wishlist)
 app.use("/user/checkout",checkout)
 app.use("/user/order",order)
+app.use("/user/wallet",wallet)
+app.use("/user/review",review)
+app.use("/user/referral",referral)
 app.use("/admin",authAdmin)
 app.use("/admin/customer",customer)
 app.use("/admin/category",category)

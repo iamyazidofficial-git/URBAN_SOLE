@@ -1,0 +1,257 @@
+/* Page Wrapper Layout */
+.mr-page-wrapper {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: #ffffff;
+    font-family: inherit;
+}
+
+.mr-main-content {
+    flex: 1;
+    max-width: 900px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 40px 20px 80px 20px;
+}
+
+/* Breadcrumb Styling */
+.mr-breadcrumb {
+    font-size: 12px;
+    color: #6b7280;
+    margin-bottom: 24px;
+    letter-spacing: 0.5px;
+}
+
+.mr-breadcrumb a {
+    color: #6b7280;
+    text-decoration: none;
+}
+
+.mr-breadcrumb a:hover {
+    color: #000000;
+}
+
+.mr-breadcrumb span {
+    color: #111827;
+    font-weight: 500;
+}
+
+/* Main Title Styling */
+.mr-main-title {
+    font-size: 24px;
+    font-weight: 800;
+    text-align: center;
+    letter-spacing: 2px;
+    color: #111827;
+    margin-bottom: 40px;
+}
+
+/* Reviews List & Card */
+.mr-reviews-list {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.mr-review-card {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 0px;
+    padding: 24px 30px;
+}
+
+/* Top Row (Image, Name, Delete) */
+.mr-card-top-row {
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+.mr-prod-img-box {
+    width: 70px;
+    height: 70px;
+    background-color: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    margin-right: 20px;
+}
+
+.mr-prod-img-box img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.mr-prod-info {
+    flex: 1;
+}
+
+.mr-prod-name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    letter-spacing: 0.5px;
+    margin: 0 0 4px 0;
+}
+
+.mr-purchased-date {
+    font-size: 12px;
+    color: #6b7280;
+    margin: 0;
+    font-weight: 400;
+}
+
+/* Delete Button */
+.mr-delete-btn {
+    background: transparent;
+    border: none;
+    font-size: 12px;
+    font-weight: 600;
+    color: #374151;
+    cursor: pointer;
+    letter-spacing: 1px;
+    padding: 4px 8px;
+    transition: color 0.2s;
+}
+
+.mr-delete-btn:hover {
+    color: #dc2626;
+}
+
+/* Divider Line inside Card */
+.mr-divider {
+    height: 1px;
+    background-color: #e5e7eb;
+    margin: 20px 0;
+}
+
+/* Review Content Section */
+.mr-review-content-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.mr-stars-row {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 2px;
+}
+
+.mr-star {
+    font-size: 16px;
+    color: #d1d5db;
+}
+
+.mr-star.filled {
+    color: #000000;
+}
+
+.mr-review-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+    margin: 0;
+}
+
+.mr-review-comment {
+    font-size: 13px;
+    line-height: 1.6;
+    color: #4b5563;
+    margin: 0;
+}
+
+.mr-reviewed-date {
+    font-size: 12px;
+    color: #9ca3af;
+    margin-top: 8px;
+}
+
+.mr-no-reviews {
+    text-align: center;
+    color: #6b7280;
+    font-size: 14px;
+    padding: 40px 0;
+}
+
+/* Custom Confirmation Modal Styling */
+.mr-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.mr-modal-box {
+    background: #ffffff;
+    padding: 30px;
+    width: 100%;
+    max-width: 400px;
+    border-radius: 0px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+    text-align: center;
+}
+
+.mr-modal-box h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 12px;
+    letter-spacing: 0.5px;
+}
+
+.mr-modal-box p {
+    font-size: 14px;
+    color: #4b5563;
+    margin-bottom: 24px;
+    line-height: 1.5;
+}
+
+.mr-modal-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.mr-modal-cancel-btn,
+.mr-modal-confirm-btn {
+    flex: 1;
+    padding: 10px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    cursor: pointer;
+    border-radius: 0px;
+    transition: all 0.2s ease;
+}
+
+.mr-modal-cancel-btn {
+    background-color: #f3f4f6;
+    border: 1px solid #d1d5db;
+    color: #374151;
+}
+
+.mr-modal-cancel-btn:hover {
+    background-color: #e5e7eb;
+}
+
+.mr-modal-confirm-btn {
+    background-color: #000000;
+    border: 1px solid #000000;
+    color: #ffffff;
+}
+
+.mr-modal-confirm-btn:hover {
+    background-color: #374151;
+    border-color: #374151;
+}

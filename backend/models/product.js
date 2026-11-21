@@ -15,6 +15,7 @@ const reviewsSchema = new mongoose.Schema(
   { timestamps: true },
 )
 
+
 const productSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true },
@@ -47,8 +48,3 @@ const productSchema = new mongoose.Schema(
 )
 
 module.exports = mongoose.model("Product", productSchema, "product")
-
-
-
-
-
