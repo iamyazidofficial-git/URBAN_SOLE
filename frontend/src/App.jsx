@@ -23,7 +23,10 @@ import Checkout from "./pages/user/Checkout/Checkout"
 import OrderSuccess from "./pages/user/OrderSucess/OrderSuccess";
 import Orders from "./pages/user/Orders/Orders"
 import TrackOrder from "./pages/user/TrackOrder/TrackOrder"
-
+import Wallet from "./pages/user/Wallet/Wallet"
+import PaymentFailed from "./pages/user/PaymentFailed/PaymentFailed";
+import Reviews from "./pages/user/Reviews/Reviews";
+import Referrals from "./pages/user/Referrals/Referrals"
 /****************************ADMIN SIDE********************************/
 
 import AdminProtectedRoute from "./ProtectedRoute/AdminProtectedRoute"
@@ -62,6 +65,10 @@ function App() {
       <Route path="/user/checkout/orderSuccess" element={<OrderSuccess/>}/>
       <Route path="/user/orders" element={<Orders/>}/>
       <Route path="/user/trackOrder" element={<TrackOrder/>}/>
+      <Route path="/user/Wallet" element={<Wallet/>}/>
+      <Route path="/user/paymentFailed" element={<PaymentFailed/>}/>
+      <Route path="/user/reviews" element={<Reviews/>}/>
+      <Route path="/user/referrals" element={<Referrals/>}/>
       </Routes>
   
 

@@ -532,7 +532,7 @@ const deleteProductService = async (productId) => {
 
   product.isListed = false
   product.status = "InActive"
-  await prdouct.save()
+  await product.save()
 
   return {
     success: true,

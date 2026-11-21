@@ -420,32 +420,130 @@ export default function Checkout() {
 
  
   const getCheckout = async () => {
-    try {
-      const response = await axiosInstance.get(`/user/checkout/fetchCheckout`, {
-        params: {
-          productData: JSON.stringify(currentData),
-          selectedCoupon: selectedCoupon,
-        },
-      });
-      if (response.data?.success == true) {
-        setOrderData(response.data?.data);
-        setCoupons(response?.data?.coupons);
-      }
-    } catch (error) {
-      console.error("CHECKOUT FETCH ERROR:", error);
+try {
+const response = await axiosInstance.get(`/user/checkout/fetchCheckout`, {
+params: {
+productData: JSON.stringify(currentData),
+type: currentData?.type || "single",
+selectedCoupon: selectedCoupon || "",
+},
+});
+if (response.data?.success == true) {
+    console.log("CHECKOUT RESPONSE:", response.data.data);
+  console.log("COUPON DISCOUNT:", response.data.data.couponDiscount);
+  console.log("TOTAL AMOUNT:", response.data.data.totalAmount);
+
+  setOrderData(response.data.data);
+  setCoupons(response.data?.coupons || []);
+setOrderData(response.data?.data);
+setCoupons(response?.data?.coupons || []);
+}
+} catch (error) {
+console.error("CHECKOUT FETCH ERROR:", error);
+}
+};
+
+
+
+
+const handleApplyCouponCode = async () => {
+    if (!couponCodeInput.trim()) {
+        toast.error("Please enter a coupon code");
+        return;
     }
-  };
+
+    try {
+        const response = await axiosInstance.post("/user/checkout/applyCoupon", {
+            code: couponCodeInput.trim(),
+            productData: JSON.stringify(currentData),
+            type: currentData?.type || "single"
+        });
+
+        if (response.data?.success) {
+            setSelectedCoupon(response.data.couponId);
+            toast.success("Coupon applied successfully!");
+            setCouponCodeInput("");
+            setCouponModal(false);
+            getCheckout();
+        }
+    } catch (error) {
+        toast.error(error?.response?.data?.message || "Invalid or expired coupon");
+    }
+};
+
+
 
   const placeOrder=async()=>{
     try{
-      const response=await axiosInstance.post("/user/checkout/placeOrder",{productData:orderData.items,address:selectedAddress._id,payment:paymentMethod,coupon:selectedCoupon||""})
+      const response=await axiosInstance.post("/user/checkout/placeOrder",{productData:orderData.items,address:selectedAddress._id,payment:paymentMethod,coupon:selectedCoupon||"",type:orderData.type||"single"})
+      console.log("JJJJ",response)
+
       if(response?.data?.success==true){
-        navigate("/user/checkout/orderSuccess",{replace:true,state:response?.data?.data})
+
+        const resData = response.data.data
+       if (paymentMethod.trim().toLowerCase() === "razorpay") {
+          
+ const { razorpayOrder, orderId }=resData
+
+ const options = {
+  key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+  amount: razorpayOrder.amount,
+  currency: razorpayOrder.currency,
+  name: "URBAN SOLE",
+  description: "Product Purchase Payment",
+  order_id: razorpayOrder.id,
+  handler: async function (res) {
+    try {
+      const verifyRes = await axiosInstance.post("/user/checkout/verify-payment", {
+        razorpay_order_id: res.razorpay_order_id,
+        razorpay_payment_id: res.razorpay_payment_id,
+        razorpay_signature: res.razorpay_signature,
+        orderId: orderId
+      });
+
+      if (verifyRes.data.success) {
+        navigate("/user/checkout/orderSuccess", { replace: true, state: resData });
+      }
+    } catch (err) {
+      toast.error("Payment verification failed");
+      console.error(err);
+      navigate("/user/paymentFailed", { 
+        replace: true, 
+        state: { orderId: resData?.orderId, items: orderData?.items,_id:orderData._id } 
+      });
+    }
+  },
+  modal: {
+    ondismiss: function () {
+      toast.error("Payment cancelled");
+      navigate("/user/paymentFailed", { 
+        replace: true, 
+        state: { orderId: resData?.orderId, items: orderData?.items,_id:orderData._id } 
+      });
+    }
+  },
+  prefill: {
+    name: selectedAddress.fullName,
+    contact: selectedAddress.phoneNumber,
+  },
+  theme: {
+    color: "#000000"
+  }
+};
+
+ const rzp = new window.Razorpay(options);
+ rzp.open();
+
+ }else {
+
+ navigate("/user/checkout/orderSuccess", { replace: true, state: resData });
+ }
       }
     }
     catch(error){
      toast.error(error?.response?.data?.message||"Something went wrong");
-      console.log(error?.response.data.message)
+
+      console.log(error)
     }finally{
       setOrderConfirmModal(false)
     }
@@ -538,8 +636,8 @@ export default function Checkout() {
                 <div className="order-item-box" key={idx}>
                   <img
                     className="order-item-img"
-                    src={item.img}
-                    alt={item.name}
+                    src={item.img||item.image}
+                    alt={item.name||item.productName}
                   />
                   <div className="order-item-info">
                     <div>
@@ -692,101 +790,107 @@ export default function Checkout() {
       </main>
 
       {/* Dynamic Coupons List Modal */}
-      {couponModal && (
-        <div className="coupon-modal-overlay">
-          <div className="coupon-modal">
-            <div className="coupon-modal-header">
-              <div>
-                <h2>AVAILABLE COUPONS</h2>
-                <p>Apply an available coupon and save more on your order.</p>
-              </div>
-              <button
-                className="coupon-close-btn"
-                onClick={() => setCouponModal(false)}
-              >
-                ✕
-              </button>
-            </div>
+{couponModal && (
+<div className="coupon-modal-overlay">
+<div className="coupon-modal">
+<div className="coupon-modal-header">
+<div>
+<h2>AVAILABLE COUPONS</h2>
+<p>Apply an available coupon and save more on your order.</p>
+</div>
+<button
+className="coupon-close-btn"
+onClick={() => setCouponModal(false)}
+>
+✕
+</button>
+</div>
 
-            <div className="coupon-input-box">
-              <span className="coupon-input-label">HAVE A CODE?</span>
-              <div className="coupon-input-wrapper">
-                <input
-                  type="text"
-                  placeholder="ENTER CODE"
-                  value={couponCodeInput}
-                  onChange={(e) => setCouponCodeInput(e.target.value)}
-                />
-                <button className="coupon-apply-btn">APPLY</button>
-              </div>
-            </div>
+<div className="coupon-input-box">
+<span className="coupon-input-label">HAVE A CODE?</span>
+<div className="coupon-input-wrapper">
+<input
+type="text"
+placeholder="ENTER CODE"
+value={couponCodeInput}
+onChange={(e) => setCouponCodeInput(e.target.value)}
+/>
+{/* മാന്വൽ അപ്ലൈ ബട്ടണിൽ onClick ഫങ്ക്ഷൻ കണക്ട് ചെയ്തു */}
+<button className="coupon-apply-btn" onClick={handleApplyCouponCode}>APPLY</button>
+</div>
+</div>
 
-            <div className="coupon-list">
-              {coupons?.map((coupon) => {
-                const isSelected = selectedCoupon === coupon._id;
+<div className="coupon-list">
+{coupons?.map((coupon) => {
+const isSelected = selectedCoupon === coupon._id || selectedCoupon === coupon.code;
 
-                return (
-                  (coupon.isApplied === false || isSelected) && (
-                    <div
-                      className={`coupon-card ${isSelected ? "applied" : ""}`}
-                      key={coupon._id}
-                    >
-                      {isSelected && (
-                        <div className="coupon-card-top-row">
-                          <span className="coupon-applied-tag">✓ APPLIED</span>
-                          <button
-                            className="coupon-action-text"
-                            onClick={() => setSelectedCoupon("")}
-                          >
-                            REMOVE
-                          </button>
-                        </div>
-                      )}
+return (
+<div
+className={`coupon-card ${isSelected ? "applied" : ""}`}
+key={coupon._id || coupon.code}
+>
+{isSelected && (
+<div className="coupon-card-top-row">
+<span className="coupon-applied-tag">✓ APPLIED</span>
+<button
+className="coupon-action-text"
+onClick={() => {
+setSelectedCoupon("");
+getCheckout();
+}}
+>
+REMOVE
+</button>
+</div>
+)}
 
-                      {coupon.badge && !isSelected && (
-                        <span className="coupon-badge-timer">
-                          🕒 {coupon.badge}
-                        </span>
-                      )}
+{coupon.badge && !isSelected && (
+<span className="coupon-badge-timer">
+🕒 {coupon.badge}
+</span>
+)}
 
-                      <h4 className="coupon-code-title">{coupon.code}</h4>
-                      <p className="coupon-discount-desc">
-                        {coupon.discountValue || coupon.description}
-                      </p>
+<h4 className="coupon-code-title">{coupon.code}</h4>
+<p className="coupon-discount-desc">
+{coupon.discountValue || coupon.description}
+</p>
 
-                      {coupon.subText && (
-                        <p className="coupon-subtext">{coupon.subText}</p>
-                      )}
+{coupon.subText && (
+<p className="coupon-subtext">{coupon.subText}</p>
+)}
 
-                      <div className="coupon-card-footer">
-                        {coupon.minOrder && (
-                          <span className="coupon-limit">
-                            🛒 Min order ₹{coupon.minOrder}
-                          </span>
-                        )}
-                        {coupon.maxDiscount && (
-                          <span className="coupon-limit">
-                            🏷️ Max discount ₹{coupon.maxDiscount}
-                          </span>
-                        )}
+<div className="coupon-card-footer">
+{coupon.minOrder && (
+<span className="coupon-limit">
+🛒 Min order ₹{coupon.minOrder}
+</span>
+)}
+{coupon.maxDiscount && (
+<span className="coupon-limit">
+🏷️ Max discount ₹{coupon.maxDiscount}
+</span>
+)}
 
-                        {!isSelected && (
-                          <button
-                            className="coupon-card-apply-btn"
-                            onClick={() => setSelectedCoupon(coupon._id)}
-                          >
-                            APPLY
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  )
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
+{!isSelected && (
+<button
+className="coupon-card-apply-btn"
+onClick={() => {
+setSelectedCoupon(coupon._id);
+setCouponModal(false);
+toast.success("Coupon applied!");
+}}
+>
+APPLY
+</button>
+)}
+</div>
+</div>
+);
+})}
+</div>
+</div>
+</div>
+)}
 
       {/* ADD MODAL */}
       {showAddModal && (
@@ -949,6 +1053,14 @@ export default function Checkout() {
             </div>
           </div>
         )}
+
+
+<ToastContainer
+  position="top-right"
+  autoClose={3000}
+  theme="colored"
+/>
+
 
       <UserFooter />
     </div>

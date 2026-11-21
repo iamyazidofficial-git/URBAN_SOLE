@@ -103,7 +103,7 @@ const addToCart = async (req, res) => {
 
     await existingCart.save()
 }
-            const existingItem = existingCart.items.find(item => item.size == size && item.colour === cleanColour);
+            const existingItem = existingCart.items.find(item => item.size == size && item.colour === cleanColour && item.product==_id);
 
             if (existingItem) {
                 const totalNewQuantity = existingItem.quantity + parsedQuantity
@@ -234,6 +234,7 @@ try {
       populate: { path: "category", select: "name" }
     });
   }
+  
 
   return res.status(200).json({
     success: true,

@@ -1,4 +1,5 @@
 const mongoose = require("mongoose")
+const { STATUS_CODES } = require("../../constants/statusCodes")
 const User = require("../../models/user")
 
 /*--------------------------------------GET----------------------------------------*/
@@ -47,7 +48,7 @@ const getUsers = async (req, res) => {
     
     const totalPages = Math.ceil(totalUsers / limit)
 
-    return res.status(200).json({
+    return res.status(STATUS_CODES.OK).json({
       success: true,
       message: "Users fetched successfully",
       users,
@@ -61,7 +62,7 @@ const getUsers = async (req, res) => {
   } catch (error) {
     console.log("Get Users Error:", error)
 
-    return res.status(500).json({
+    return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
       success: false,
       message: "Failed to fetch users",
     })
@@ -77,7 +78,7 @@ const toggleUserStatus = async (req, res) => {
     const { id } = req.params
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
-      return res.status(400).json({
+      return res.status(STATUS_CODES.BAD_REQUEST).json({
         success: false,
         message: "Invalid user ID",
       })
@@ -89,7 +90,7 @@ const toggleUserStatus = async (req, res) => {
     })
 
     if (!user) {
-      return res.status(404).json({
+      return res.status(STATUS_CODES.NOT_FOUND).json({
         success: false,
         message: "User not found",
       })
@@ -99,7 +100,7 @@ const toggleUserStatus = async (req, res) => {
     user.isBlocked = !user.isBlocked
     await user.save()
 
-    return res.status(200).json({
+    return res.status(STATUS_CODES.OK).json({
       success: true,
       message: user.isBlocked
         ? "User blocked successfully"
@@ -114,7 +115,7 @@ const toggleUserStatus = async (req, res) => {
   } catch (error) {
     console.log(error)
 
-    return res.status(500).json({
+    return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
       success: false,
       message: "Failed to update user status"
     })
@@ -125,4 +126,3 @@ module.exports = {
   getUsers,
   toggleUserStatus
 }
-

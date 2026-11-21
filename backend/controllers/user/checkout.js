@@ -1,13 +1,13 @@
-const {fetchCheckoutService,placeOrderService}=require("../../service/order")
+const {fetchCheckoutService,placeOrderService,verifyPaymentService,retryPaymentService}=require("../../service/order")
 const {getCouponService}=require("../../service/coupon")
 const jwt=require("jsonwebtoken")
 
 const fetchCheckout=async(req,res)=>{
     try{
-        console.log("kkkkkkkkkkkkkkkk")
         const productData = req.query.productData ? JSON.parse(req.query.productData) : null;
         const selectedCoupon=req.query.selectedCoupon || ""
-       const response=await fetchCheckoutService(productData,selectedCoupon)
+        const type=req.query.type
+       const response=await fetchCheckoutService(productData,selectedCoupon,type)
        const coupons=await getCouponService("user",response?.totalAmount)
 
        
@@ -43,19 +43,49 @@ const placeOrder=async(req,res)=>{
     
         const response=await placeOrderService(req.body)
 
+
         return res.status(200).json({
             success:true,
+            message:"Order Placed",
             data:response
         })
     }catch(error){
-        console.log(error)
+        console.log("JJJJ",error)
         return res.status(400).json({
             success:false,
-            message:error?.response?.message
+            message:error?.message
         })
     }
 }
 
+
+const verifyPayment = async (req, res) => {
+    try {
+        const result = await verifyPaymentService(req.body);
+        return res.status(200).json(result);
+    } catch (error) {
+        console.log("ERR",error)
+        return res.status(400).json({ success: false, message: error.message });
+    }
+}
+
+
+const retryPayment = async (req, res) => {
+    try {
+        const response = await retryPaymentService(req.body);
+        return res.status(200).json({
+            success: true,
+            data: response
+        });
+    } catch (error) {
+        console.log("ERR",error)
+        return res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
 module.exports={
-    fetchCheckout,placeOrder
+    fetchCheckout,placeOrder,verifyPayment,retryPayment
 }

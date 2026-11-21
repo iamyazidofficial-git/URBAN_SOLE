@@ -1,5 +1,6 @@
 /*******************************************IMPORTS***********************************************/
 
+const { STATUS_CODES } = require("../../constants/statusCodes")
 const { addProductService, getProductService, editProductService,getSingleProductService,toggleStatusService,deleteProductService } = require("../../service/product")
 
 /*--------------------------------ADD PRODUCT---------------------------------*/
@@ -13,9 +14,9 @@ const addProductController = async (req, res) => {
     }
 
     const result = await addProductService(productData, req.files)
-    return res.status(201).json(result)
+    return res.status(STATUS_CODES.CREATED).json(result)
   } catch (error) {
-    return res.status(400).json({
+    return res.status(STATUS_CODES.BAD_REQUEST).json({
       success: false,
       message: error.message || "Internal server error",
     })
@@ -31,9 +32,9 @@ const getProductController = async (req, res) => {
 
   try {
     const result = await getProductService({...req.query,role:"admin"})
-    return res.status(200).json(result)
+    return res.status(STATUS_CODES.OK).json(result)
   } catch (error) {
-    return res.status(500).json({
+    return res.status(STATUS_CODES.INTERNAL_SERVER_ERROR).json({
       success: false,
       message: error.message || "Internal server error",
     })
@@ -50,9 +51,9 @@ const getSingleProductController = async (req, res) => {
   try {
     const { id } = req.params
     const result = await getSingleProductService(id,"admin")
-    return res.status(200).json(result)
+    return res.status(STATUS_CODES.OK).json(result)
   } catch (error) {
-    return res.status(404).json({
+    return res.status(STATUS_CODES.NOT_FOUND).json({
       success: false,
       message: error.message || "Product not found",
     })
@@ -75,9 +76,9 @@ const editProductController = async (req, res) => {
     }
 
     const result = await editProductService(id, productData, req.files)
-    return res.status(200).json(result)
+    return res.status(STATUS_CODES.OK).json(result)
   } catch (error) {
-    return res.status(400).json({
+    return res.status(STATUS_CODES.BAD_REQUEST).json({
       success: false,
       message: error.message || "Internal server error",
     })
@@ -94,9 +95,9 @@ const toggleStatusController = async (req, res) => {
   try {
     const { id } = req.params
     const result = await toggleStatusService(id)
-    return res.status(200).json(result)
+    return res.status(STATUS_CODES.OK).json(result)
   } catch (error) {
-    return res.status(400).json({
+    return res.status(STATUS_CODES.BAD_REQUEST).json({
       success: false,
       message: error.message || "Internal server error",
     })
@@ -113,9 +114,9 @@ const deleteProductController = async (req, res) => {
   try {
     const { id } = req.params
     const result = await deleteProductService(id)
-    return res.status(200).json(result)
+    return res.status(STATUS_CODES.OK).json(result)
   } catch (error) {
-    return res.status(400).json({
+    return res.status(STATUS_CODES.BAD_REQUEST).json({
       success: false,
       message: error.message || "Internal server error",
     })

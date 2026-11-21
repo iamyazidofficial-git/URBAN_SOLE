@@ -326,8 +326,12 @@ const deleteCouponService = async (couponId) => {
 
 const getCouponService = async (role = "user",totalAmount) => {
   if (role == "user") {
-    const coupons = await Coupon.find({ minCart: { $lte: totalAmount },status:"Active" });
-
+const currentDate = new Date();
+        const coupons = await Coupon.find({
+            status: "Active",
+            expiryDate: { $gte: currentDate },
+            minCart: { $lte: totalAmount }
+        })
     if (!coupons) {
       throw new Error("Coupons is empty");
     }

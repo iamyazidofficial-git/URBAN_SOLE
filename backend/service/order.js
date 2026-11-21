@@ -4,8 +4,21 @@ const Address=require("../models/address.js")
 const User=require("../models/user.js")
 const Order=require("../models/order.js")
 const Variant=require("../models/variant.js")
+const jwt=require("jsonwebtoken")
+const Cart=require("../models/cart.js")
+const Wallet=require("../models/wallet.js")
+const WalletTransaction=require("../models/walletTransaction.js")
+const { processWalletTransactionService } = require("../service/wallet.js")
+const mongoose=require("mongoose")
+const nodeCrypto = require("crypto");
 
-const fetchCheckoutService=async(productData,selectedCoupon)=>{
+const Razorpay = require("razorpay");
+const razorpayInstance = new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
+
+const fetchCheckoutService=async(productData,selectedCoupon,type)=>{
 
     let subTotal=0
     let tax
@@ -13,12 +26,10 @@ const fetchCheckoutService=async(productData,selectedCoupon)=>{
     let shippingCharge=0
     let totalAmount
     let couponDiscount
- 
+
     for (let item of productData){
         let itemPrice=item.price
-        console.log("item",item)
         if(item?.offer){
-            console.log("Haii")
             const offerDiscount=(itemPrice*item?.offer)/100
             itemPrice-=parseInt(offerDiscount)
         }
@@ -46,33 +57,28 @@ const fetchCheckoutService=async(productData,selectedCoupon)=>{
 
     let readyCoupon
 
-    if(selectedCoupon){
-         readyCoupon=await Coupon.findOne({_id:selectedCoupon})
-    }
+    if (selectedCoupon) {
+    readyCoupon = await Coupon.findOne({ _id: selectedCoupon });
+  }
 
     
    totalAmount=subTotal+tax
 
 
-    if(readyCoupon && subTotal>readyCoupon?.minCart){
-      if(readyCoupon.discountType=="Percentage"){
-        const discount=(totalAmount*readyCoupon.discountValue)/100
-
-        readyCoupon.maxDiscount<discount?couponDiscount=readyCoupon.maxDiscount:couponDiscount=discount
-        totalAmount=totalAmount-couponDiscount
-      }
-      else{
-        totalAmount=totalAmount-readyCoupon.discountValue
-        couponDiscount=readyCoupon.discountValue
-      }
+    if (readyCoupon && subTotal >= readyCoupon?.minCart) {
+    if (readyCoupon.discountType === "Percentage") {
+      const discount = (subTotal * readyCoupon.discountValue) / 100;
+      couponDiscount = readyCoupon.maxDiscount < discount ? readyCoupon.maxDiscount : discount;
+    } else {
+      couponDiscount = readyCoupon.discountValue;
     }
+      totalAmount-=couponDiscount
 
-   console.log("JJJJJJJJJ",{ subTotal:subTotal,
-        taxPercentage:taxPercentage,
-        tax:tax,
-        totalAmount:totalAmount,
-        shippingCharge:shippingCharge,
-        items:productData})
+  }
+
+  totalAmount += shippingCharge
+  totalAmount = Number(totalAmount.toFixed(2));
+  couponDiscount = Number((couponDiscount || 0).toFixed(2))
 
 
      return{
@@ -82,7 +88,8 @@ const fetchCheckoutService=async(productData,selectedCoupon)=>{
         totalAmount:totalAmount,
         shippingCharge:shippingCharge,
         couponDiscount:couponDiscount,
-        items:productData
+        items:productData,
+        type:type||"single"
     }
 }
 
@@ -91,10 +98,22 @@ const fetchCheckoutService=async(productData,selectedCoupon)=>{
 const placeOrderService=async(orderData)=>{
    
 
-const {productData,payment,address,coupon,userId}=orderData
+const {productData,payment,address,coupon,userId,type}=orderData
 
-console.log("HIIII",orderData)
+console.log("DDD",productData)
 
+const inActiveProducts = await Product.find({
+    _id: { $in: productData.map(item => item.product) },
+    status: "InActive"
+});
+
+if (inActiveProducts.length > 0) {
+    throw new Error("This order contains inactive products");
+}
+
+if(!userId){
+    throw new Error("Session expired please login")
+}
 
 const user=await User.findOne({_id:userId})
 
@@ -122,13 +141,12 @@ if(!productData){
 }
 
 let couponObject
-if(coupon){
-    couponObject=await Coupon.findOne({coupon})
-    if(!couponObject){
- throw new Error("Coupon is unavailable")
+if (coupon) {
+    couponObject = await Coupon.findOne({ _id: coupon });
+    if (!couponObject) {
+      throw new Error("Coupon is unavailable");
     }
-   
-}
+  }
 
 
 
@@ -171,13 +189,13 @@ return acc
 
 
 if (couponObject && subTotal >= couponObject.minCart) {
-  if (couponObject.discountType === "Percentage") {
-    const discount = (couponObject.discountValue * subTotal) / 100
-    couponDiscount = Math.min(discount, couponObject.maxDiscount || discount)
-  } else {
-    couponDiscount = couponObject.discountValue
+    if (couponObject.discountType === "Percentage") {
+      const discount = (couponObject.discountValue * subTotal) / 100;
+      couponDiscount = Math.min(discount, couponObject.maxDiscount || discount);
+    } else {
+      couponDiscount = couponObject.discountValue;
+    }
   }
-}
 
 
 if (couponDiscount) {
@@ -209,11 +227,49 @@ productData.forEach(item => {
 
 for(const item of productData){
 
-   const itemVariant = await Variant.findOne({ colour: item.colour });
 
     const productId = item.product || item._id;
     const productName = item.productName || item.name;
     const productImage = item.image || item.img;
+
+    const product = await Product.findOne({ _id: productId })
+    if (!product) {
+        throw new Error("Product not found");
+    }
+
+    const itemVariant = await Variant.findOne({ 
+        _id: { $in: product.vartiant }, 
+        colour: item.colour 
+    })
+
+    if (!itemVariant) {
+        throw new Error("Product variant not found");
+    }
+
+
+const itemSize = Number(item.size);
+const itemQuantity = Number(item.quantity);
+
+const updatedVariant = await Variant.findOneAndUpdate(
+    {
+        _id: itemVariant._id,
+        inventory: {
+            $elemMatch: {
+                size: itemSize,                   
+                quantity: { $gte: itemQuantity }  
+            }
+        }
+    },
+    {
+        $inc: { "inventory.$.quantity": -itemQuantity }
+    }
+);
+
+
+if (!updatedVariant) {
+    throw new Error(`${item.productName} is out of stock for size ${item.size}`);
+}
+
 
     orderItems.push({
         product: productId,
@@ -280,8 +336,9 @@ const orderedData={
     },
     items:orderItems,
     shippingAddress:shippingAddress,
-    payment:{
-        method:payment.trim().toUpperCase()
+     payment: {
+        method: payment.trim().toUpperCase(),
+        status: payment.trim().toUpperCase() === "WALLET" ? "PAID" : "PENDING"
     },
     pricing:{
         subTotal:subTotal,
@@ -293,11 +350,135 @@ const orderedData={
     }
 }
 
-await Order.create(orderedData)
+if (payment.trim().toUpperCase() === "WALLET") {
+    userWallet = await Wallet.findOne({ user: userId });
+    
+    if (!userWallet || userWallet.balance < totalAmount) {
+        throw new Error("Insufficient wallet balance");
+    }
+}
+
+
+
+if (payment.trim().toUpperCase() === "WALLET" || payment.trim().toUpperCase() === "CASHONDELIVERY") {
+    orderedData["orderStatus"] = "PLACED";
+    orderedData.items.forEach(item => { item.status = "PLACED"; });
+} else {
+    orderedData["orderStatus"] = "PENDING";
+    orderedData.items.forEach(item => { item.status = "PENDING"; });
+}
+
+
+if (payment.trim().toUpperCase() === "WALLET") {
+    userWallet.balance -= totalAmount;
+    await userWallet.save();
+
+    await WalletTransaction.create({
+        wallet: userWallet._id,
+        user: user._id,
+        type: "DEBIT",
+        source: "ORDER_PAYMENT",
+        amount: totalAmount,
+        order: orderData.orderId, 
+        description: `Payment for order ${orderId}`,
+        referenceId: orderId
+    });
+}
+else if(payment.trim().toUpperCase()=="CASHONDELIVERY"){
+    orderedData["orderStatus"]="PLACED"
+ orderedData.items.forEach(item => {
+        item.status = "PLACED";
+    })
+}
+else if(payment.trim().toUpperCase()=="RAZORPAY"){
+    orderedData["orderStatus"]="PENDING"
+ orderedData.items.forEach(item => {
+        item.status = "PENDING";
+    })
+}
+
+
+let razorpayOrder = null
+
+if (payment.trim().toUpperCase() === "RAZORPAY") {
+    const options = {
+        amount: Math.round(totalAmount * 100), 
+        currency: "INR",
+        receipt: orderId,
+    };
+    
+    try {
+        razorpayOrder = await razorpayInstance.orders.create(options);
+    } catch (error) {
+        console.error("Razorpay API Error Details:", error);
+        throw new Error("Payment Failed");
+    }
+}
+
+const newOrder=await Order.create(orderedData)
+
+
+for (item of productData){
+    
+    const productId = item.product || item._id;
+    const productName = item.productName || item.name;
+    const productImage = item.image || item.img;
+
+    const product = await Product.findOne({ _id: productId })
+    if (!product) {
+        throw new Error("Product not found");
+    }
+
+    const itemVariant = await Variant.findOne({ 
+        _id: { $in: product.vartiant }, 
+        colour: item.colour 
+    })
+
+    if (!itemVariant) {
+        throw new Error("Product variant not found");
+    }
+
+
+    const itemSize = Number(item.size);
+const itemQuantity = Number(item.quantity);
+
+const updatedVariant = await Variant.findOneAndUpdate(
+    {
+        _id: itemVariant._id,
+        inventory: {
+            $elemMatch: {
+                size: itemSize,                   
+                quantity: { $gte: itemQuantity }  
+            }
+        }
+    },
+    {
+        $inc: { "inventory.$.quantity": -(itemQuantity-1) }
+    }
+);
+
+
+if (!updatedVariant) {
+    throw new Error(`${item.productName || 'Product'} is out of stock for size ${item.size}`);
+}
+}
+
+
+
+if(type=="cart"){
+    const cart=await Cart.findOne({user:user._id})
+
+    cart.items=[]
+    await cart.save()
+}
+
+
 
 const orderDetails={
     orderId:orderId,
-    estimatedDelivery:formattedDate
+    estimatedDelivery:formattedDate,
+    razorpayOrder:razorpayOrder,
+    _id:newOrder._id
 }
 
 return orderDetails
@@ -360,12 +541,14 @@ const getOrderService=async (role="user",userId,query)=>{
 
 const trackOrderService=async(params)=>{
     const orderId=params?.orderId
-    
-    const orderData=await Order.findOne({_id:orderId})
 
+    
      if(!orderId){
         throw new Error("orderId is not passed")
     }
+    
+    const orderData=await Order.findOne({_id:orderId})
+
     if(!orderData){
         throw new Error("order is not found")
     }
@@ -379,13 +562,13 @@ const orderDetailsService=async(params)=>{
 
      const orderId=params?.id
 
-     console.log("Haiai;",orderId)
+      if(!orderId){
+        throw new Error("orderId is not passed")
+    }
 
     const orderData=await Order.findOne({_id:orderId})
 
-     if(!orderId){
-        throw new Error("orderId is not passed")
-    }
+    
     if(!orderData){
         throw new Error("order is not found")
     }
@@ -413,6 +596,43 @@ const toggleStatusService=async(params,body)=>{
    
 
     const order=await Order.findOne({_id:orderId})
+
+    if (!order) {
+        throw new Error("Order is not found");
+    }
+
+
+    const currentStatus = order.orderStatus;
+
+    if (["DELIVERED", "RETURNED", "CANCELLED", "RETURN_REJECTED"].includes(currentStatus)) {
+        throw new Error(`Order is already in ${currentStatus} state. Status cannot be changed.`);
+    }
+
+    if (currentStatus === "PLACED") {
+        if (!["SHIPPED", "OUT_OF_DELIVERY", "CANCELLED"].includes(status)) {
+            throw new Error("Invalid status transition. From PLACED, you can only change to SHIPPED, OUT_OF_DELIVERY, or CANCELLED.");
+        }
+    } 
+    else if (currentStatus === "SHIPPED") {
+        if (!["OUT_OF_DELIVERY", "CANCELLED"].includes(status)) {
+            throw new Error("Invalid status transition. From SHIPPED, you can only change to OUT_OF_DELIVERY or CANCELLED.");
+        }
+    } 
+    else if (currentStatus === "OUT_OF_DELIVERY") {
+        if (!["DELIVERED", "CANCELLED"].includes(status)) {
+            throw new Error("Invalid status transition. From OUT_OF_DELIVERY, you can only change to DELIVERED or CANCELLED.");
+        }
+    } 
+    else if (currentStatus === "RETURN_REQUESTED") {
+        if (!["RETURN_APPROVED", "RETURN_REJECTED"].includes(status)) {
+            throw new Error("Invalid status transition. From RETURN_REQUESTED, you can only change to RETURN_APPROVED or RETURN_REJECTED.");
+        }
+    } 
+    else if (currentStatus === "RETURN_APPROVED") {
+        if (status !== "RETURNED") {
+            throw new Error("Invalid status transition. From RETURN_APPROVED, you can only change to RETURNED.");
+        }
+    }
 
     if(status=="CANCELLED"){
 
@@ -448,17 +668,39 @@ const toggleStatusService=async(params,body)=>{
         
    order.returnInfo.approvedAt=date
 
+   const requestedItems=order.items.filter(item=>item.status=="RETURN_REQUESTED")
+
+   requestedItems.forEach(item=>item.status="RETURN_APPROVED")
+
     }
 
-    if(status=="RETURNED"){
-   const date=new Date() 
-   order.returnInfo.returnedAt=date 
+    if (status == "RETURNED") {
+        const date = new Date();
+        order.returnInfo.returnedAt = date;
+
+        const returnItem=order.items.filter(item=>item.status=="RETURN_APPROVED")
+
+        const returnPrice=returnItem.reduce((acc,item)=>{
+            acc+=item.itemTotal
+            return acc
+        },0)
+
+        if(order.deliveryCharge>0){
+            returnPrice-=order.deliveryCharge
+        }
+
+
+            await processWalletTransactionService({
+                userId: order.user,
+                amount: returnPrice,
+                type: "CREDIT",
+                source: "ORDER_REFUND",
+                orderId: order._id,
+                description: `Refund for returned order ${order.orderId}`
+            });
+        
     }
-
     
-
-    
-
 
     const items = order.items.filter(item =>
   !["RETURNED", "RETURN_REQUESTED", "RETURN_REJECTED", "CANCELLED"].includes(item.status)
@@ -494,6 +736,12 @@ const cancelOrderService=async(params)=>{
    if(!reason){
     throw new Error("Reason is not passed")
    }
+
+   const allowedStatusesForCancellation = ["PLACED", "SHIPPED", "OUT_OF_DELIVERY"];
+
+    if (!allowedStatusesForCancellation.includes(order.orderStatus)) {
+        throw new Error(`Order cancellation is not allowed in this time`);
+    }
 
    if(order.orderStatus=="PENDING"){
     throw new Error("Order is not placed")
@@ -559,6 +807,12 @@ if(!order){
    if(!item){
     throw new Error("Item not found in this order")
    }
+
+   const allowedStatusesForCancellation = ["PLACED", "SHIPPED", "OUT_OF_DELIVERY"];
+
+    if (!allowedStatusesForCancellation.includes(item.status)) {
+        throw new Error(`Cancellation is not allowed for this time`);
+    }
 
    if(item.status=="CANCELLED"){
     throw new Error("This Item allready cancelled")
@@ -638,7 +892,6 @@ const orderId=params.orderId
 const productId=params.productId
 const reason=body?.reason?.trim()
 
-console.log("NFHFHFHF",body)
 
 if(!orderId){
     throw new Error("OrderId is not passed")
@@ -654,13 +907,13 @@ const order=await Order.findOne({_id:orderId})
     throw new Error("Order is not found")
    }
 
-   if(!order.orderStatus=="DELIVERED"){
-    throw new Error("Order is not delivered")
-   }
-
 
    if(["RETURN_REQUESTED","RETURN_REJECTED","RETURNED"].includes(order.orderStatus)){
     throw new Error("This Order Allready requested for Return")
+   }
+
+   if(!order.orderStatus=="DELIVERED"){
+    throw new Error("Order is not delivered")
    }
 
    const item=order.items.find(item=>item.product==productId)
@@ -695,8 +948,7 @@ const order=await Order.findOne({_id:orderId})
 
 
 const toggleItemService=async(params,body)=>{
-console.log("BJJ",body)
-console.log("PAA",params)
+
     const orderId=params.orderId
     const itemId=params.itemId
     const status=body?.status?.trim()
@@ -721,6 +973,40 @@ console.log("PAA",params)
 
     const item=order.items.find(item=>item.product==itemId)
 
+    if (!item) {
+        throw new Error("Item is not found in this order");
+    }
+
+    const currentStatus = item.status;
+
+    if (currentStatus === "DELIVERED" || currentStatus === "RETURNED" || currentStatus === "CANCELLED" || currentStatus === "RETURN_REJECTED") {
+        throw new Error(`Item is already in ${currentStatus} state. Status cannot be changed.`);
+    }
+    if (currentStatus === "PLACED") {
+        if (!["SHIPPED", "OUT_OF_DELIVERY", "CANCELLED"].includes(status)) {
+            throw new Error("Invalid status transition. From PLACED, you can only change to SHIPPED, OUT_OF_DELIVERY, or CANCELLED.");
+        }
+    } 
+    else if (currentStatus === "SHIPPED") {
+        if (!["OUT_OF_DELIVERY", "CANCELLED"].includes(status)) {
+            throw new Error("Invalid status transition. From SHIPPED, you can only change to OUT_OF_DELIVERY or CANCELLED.");
+        }
+    } 
+    else if (currentStatus === "OUT_OF_DELIVERY") {
+        if (!["DELIVERED", "CANCELLED"].includes(status)) {
+            throw new Error("Invalid status transition. From OUT_OF_DELIVERY, you can only change to DELIVERED or CANCELLED.");
+        }
+    } 
+    else if (currentStatus === "RETURN_REQUESTED") {
+        if (!["RETURN_APPROVED", "RETURN_REJECTED"].includes(status)) {
+            throw new Error("Invalid status transition. From RETURN_REQUESTED, you can only change to RETURN_APPROVED or RETURN_REJECTED.");
+        }
+    } 
+    else if (currentStatus === "RETURN_APPROVED") {
+        if (status !== "RETURNED") {
+            throw new Error("Invalid status transition. From RETURN_APPROVED, you can only change to RETURNED.");
+        }
+    }
 
     if(status=="CANCELLED"){
 
@@ -775,4 +1061,94 @@ await order.save()
 }
 
 
-module.exports={fetchCheckoutService,placeOrderService,getOrderService,trackOrderService,orderDetailsService,toggleStatusService,cancelOrderService,cancelProductService,toggleItemService,returnOrderService,returnProductService}
+
+
+
+const verifyPaymentService = async (body) => {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, orderId } = body;
+
+    console.log("OOORR", orderId);
+
+    if (!orderId) {
+        throw new Error("Order ID is required");
+    }
+
+    const hmac = nodeCrypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
+    hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
+    const generated_signature = hmac.digest("hex");
+
+    if (generated_signature !== razorpay_signature) {
+        throw new Error("Payment verification failed: Invalid signature");
+    }
+
+    const order = await Order.findOne({
+        $or: [
+            ...(mongoose.Types.ObjectId.isValid(orderId) ? [{ _id: orderId }] : []),
+            { orderId: orderId }
+        ]
+    });
+
+    if (!order) {
+        throw new Error("Order not found");
+    }
+
+    order.orderStatus = "PLACED";
+    order.payment.status = "PAID";
+    order.payment.razorpayPaymentId = razorpay_payment_id;
+    order.payment.razorpaySignature = razorpay_signature;
+
+    if (order.items && Array.isArray(order.items)) {
+        order.items.forEach(item => {
+            item.status = "PLACED";
+        });
+    }
+
+    await order.save();
+
+    return { success: true, message: "Payment verified and order placed successfully" };
+};
+
+
+
+
+
+const retryPaymentService = async ({ orderId, _id } = {}) => {
+    const lookupId = _id || orderId;
+
+    if (!lookupId) {
+        throw new Error("Order ID is required");
+    }
+
+    const order = await Order.findOne({
+        $or: [
+            ...(mongoose.Types.ObjectId.isValid(lookupId) ? [{ _id: lookupId }] : []),
+            { orderId: lookupId }
+        ]
+    });
+
+    if (!order) {
+        throw new Error("Order not found");
+    }
+
+    if (order.payment?.status === "PAID" || order.orderStatus === "PLACED") {
+        throw new Error("This order is already paid");
+    }
+
+    const options = {
+        amount: Math.round(order.pricing.totalAmount * 100),
+        currency: "INR",
+        receipt: order.orderId || order._id.toString(),
+    };
+
+    const razorpayOrder = await razorpayInstance.orders.create(options);
+
+    return {
+        razorpayOrder,
+        _id: order._id,
+        orderId: order.orderId,
+        customerSnapshot: order.customerSnapshot,
+        shippingAddress: order.shippingAddress
+    };
+};
+
+module.exports={fetchCheckoutService,placeOrderService,getOrderService,trackOrderService,orderDetailsService,toggleStatusService,cancelOrderService,cancelProductService,toggleItemService,returnOrderService,returnProductService,verifyPaymentService,retryPaymentService}
