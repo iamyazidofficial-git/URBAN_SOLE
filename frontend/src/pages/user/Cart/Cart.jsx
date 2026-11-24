@@ -68,38 +68,60 @@ const Cart = () => {
   };
 
   // Subtotal Calculation
- const subtotal = cartItems.reduce((acc, item) => {
-  const product = item.product || {};
-  const price = Number(product.price || item.price || 0);
-  const offer = Number(product.offer || item.offer || 0);
-  
-  const finalPrice = offer > 0 ? Math.round(price - (price * offer) / 100) : price;
-  
-  return acc + (finalPrice * Number(item.quantity || 1));
+  const subtotal = cartItems.reduce((acc, item) => {
+    const product = item.product || {};
+    const price = Number(product.price || item.price || 0);
+    const offer = Number(product.offer || item.offer || 0);
+    
+    const finalPrice = offer > 0 ? Math.round(price - (price * offer) / 100) : price;
+    
+    return acc + (finalPrice * Number(item.quantity || 1));
+  }, 0);
 
+  const taxPercentage = 18;
+  const taxAmount = Number(((subtotal * taxPercentage) / 100).toFixed(2));
+  const totalAmount = Number((subtotal + taxAmount).toFixed(2));
 
-}, 0);
+  const handleItemClick = (item) => {
+    const prod = item.product && typeof item.product === 'object' ? item.product : { _id: item.product || item._id };
+    navigate('/user/productDetails', {
+      state: {
+        product: {
+          ...prod,
+          _id: prod._id || item.product,
+          name: prod.name || item.name,
+          price: prod.price || item.price,
+          offer: prod.offer || item.offer,
+          img: item.img || prod.img,
+          colour: item.colour,
+          size: item.size
+        }
+      }
+    });
+  };
 
+  const buy = () => {
+    const orderData = cartItems.map((item) => ({
+      product: item.product?._id || item.product,
+      _id: item.product?._id || item.product,
+      name: item.product?.name || item.name || "",
+      productName: item.product?.name || item.name || "",
+      brand: item.product?.brand?.name || item.brand || "",
+      image: item.img || item.image || item.product?.img,
+      img: item.img || item.image || item.product?.img,
+      quantity: item.quantity,
+      size: item.size,
+      colour: item.colour,
+      price: item.price
+    }));
 
-
-  const buy=()=>{
-
-const orderData = cartItems.map((item) => ({
-  product: item.product._id,
-  productName: item.product.name,
-  image: item.img,
-  quantity: item.quantity,
-  size: item.size,
-  colour: item.colour,
-  price: item.price
-}))
-
-orderData.type="cart"
-      navigate("/user/checkout",{state:{
-        data:orderData
-      }})
-
-  }
+    orderData.type = "cart";
+    navigate("/user/checkout", {
+      state: {
+        data: orderData
+      }
+    });
+  };
 
   return (
     <div className="cart-page-wrapper">
@@ -133,14 +155,23 @@ orderData.type="cart"
               ) : (
                 cartItems.map((item, index) => (
                   <div className="cart-item-card" key={`${item._id}-${item.size}-${item.colour}-${index}`}>
-                    <div className="cart-item-image-box">
+                    <div 
+                      className="cart-item-image-box"
+                      onClick={() => handleItemClick(item)}
+                      style={{ cursor: "pointer" }}
+                      title="View Product Details"
+                    >
                       <img src={item.img || item.product?.img} alt={item.product?.name || item.name} />
                     </div>
 
                     <div className="cart-item-details">
                       <div className="cart-item-top">
-                        <div>
-                          <h3 className="cart-item-name">{item.product?.name || item.name} • {item.colour}</h3>
+                        <div 
+                          onClick={() => handleItemClick(item)}
+                          style={{ cursor: "pointer" }}
+                          title="View Product Details"
+                        >
+                          <h3 className="cart-item-name" style={{ cursor: "pointer" }}>{item.product?.name || item.name} • {item.colour}</h3>
                           <p className="cart-item-category">{item.product?.category?.name}</p>
                           <div className="cart-item-size-badge">SIZE: {item.size}</div>
                         </div>
@@ -188,21 +219,26 @@ orderData.type="cart"
               </div>
 
               <div className="cart-summary-row">
-                <span>Estimated Shipping</span>
-                <span>Calculated at checkout</span>
+                <span>Tax Percentage</span>
+                <span className="val">{taxPercentage}%</span>
               </div>
 
               <div className="cart-summary-row">
-                <span>Estimated Tax</span>
-                <span>Calculated at checkout</span>
+                <span>Tax Amount</span>
+                <span className="val">+₹{taxAmount.toFixed(2)}</span>
+              </div>
+
+              <div className="cart-summary-row">
+                <span>Estimated Shipping</span>
+                <span style={{ fontSize: "12px", color: "#6b7280" }}>Calculated at checkout</span>
               </div>
 
               <div className="cart-summary-total-row">
                 <span className="label">Total</span>
-                <span className="val">₹{subtotal.toFixed(2)}</span>
+                <span className="val">₹{totalAmount.toFixed(2)}</span>
               </div>
 
-              <button className="cart-checkout-btn" onClick={buy}>
+              <button className="cart-checkout-btn" onClick={buy} disabled={cartItems.length === 0}>
                 PROCEED TO CHECKOUT
               </button>
 

@@ -193,8 +193,11 @@ try {
 
   let existingCart = await Cart.findOne({ user: user._id }).populate({
     path: "items.product",
-    select: "category name brand offer price isListed status",
-    populate: { path: "category", select: "name" }
+    select: "category name brand offer price isListed status vartiant description countryOfOrgin",
+    populate: [
+      { path: "category", select: "name" },
+      { path: "brand", select: "name" }
+    ]
   });
 
   // If cart doesn't exist yet, return an empty cart structure gracefully
@@ -230,8 +233,11 @@ try {
     // Re-populate after saving to ensure frontend gets full product details
     existingCart = await Cart.findById(existingCart._id).populate({
       path: "items.product",
-      select: "category name brand offer price",
-      populate: { path: "category", select: "name" }
+      select: "category name brand offer price isListed status vartiant description countryOfOrgin",
+      populate: [
+        { path: "category", select: "name" },
+        { path: "brand", select: "name" }
+      ]
     });
   }
   

@@ -484,29 +484,110 @@ const orderDetailsService=async(params)=>{
 
 
 
-const toggleStatusService=async(params,body)=>{
-    const orderId=params.id
-    const status=body?.status?.trim()
-    const reason=body?.reason.trim()
+const restoreItemStock = async (item) => {
+    try {
+        const itemSize = Number(item.size);
+        const itemQuantity = Number(item.quantity) || 1;
 
-
-    console.log(body,params)
-
-
-    if(!orderId){
-        throw new Error("OrderId is not passed")
+        if (item.variant) {
+            await Variant.findOneAndUpdate(
+                {
+                    _id: item.variant,
+                    "inventory.size": itemSize
+                },
+                {
+                    $inc: { "inventory.$.quantity": itemQuantity }
+                }
+            );
+        } else if (item.product) {
+            const product = await Product.findById(item.product);
+            if (product && product.vartiant) {
+                await Variant.findOneAndUpdate(
+                    {
+                        _id: { $in: product.vartiant },
+                        colour: item.colour,
+                        "inventory.size": itemSize
+                    },
+                    {
+                        $inc: { "inventory.$.quantity": itemQuantity }
+                    }
+                );
+            }
+        }
+    } catch (err) {
+        console.error("Error restoring stock for item:", item.productName || item._id, err);
     }
-    if(!status){
-        throw new Error("Status is not passed")
-    }
-   
+};
 
-    const order=await Order.findOne({_id:orderId})
+const getItemReturnRefundAmount = (order, item) => {
+    const subTotal = Number(order.pricing?.subTotal) || 0;
+    const totalCouponDiscount = Number(order.pricing?.discount) || 0;
+    const totalTax = Number(order.pricing?.tax) || 0;
+    const lineTotal = Number(item.price) * (Number(item.quantity) || 1);
+
+    if (subTotal > 0) {
+        const proportion = lineTotal / subTotal;
+        const itemCouponDiscount = totalCouponDiscount * proportion;
+        const itemTax = totalTax * proportion;
+        // item price + distributed tax - distributed coupon discount (shipping charge excluded)
+        const netAmount = Math.max(0, lineTotal - itemCouponDiscount + itemTax);
+        return Number(netAmount.toFixed(2));
+    }
+
+    if (item.itemTotal && Number(item.itemTotal) > 0) {
+        return Number(Number(item.itemTotal).toFixed(2));
+    }
+
+    return Number(lineTotal.toFixed(2));
+};
+
+const checkAndSyncOrderStatus = (order) => {
+    if (!order.items || order.items.length === 0) return;
+
+    const allCancelled = order.items.every(item => item.status === "CANCELLED");
+    if (allCancelled) {
+        order.orderStatus = "CANCELLED";
+        if (!order.cancellation) order.cancellation = {};
+        if (!order.cancellation.at) order.cancellation.at = new Date();
+        return;
+    }
+
+    const allReturned = order.items.every(item => item.status === "RETURNED");
+    if (allReturned) {
+        order.orderStatus = "RETURNED";
+        if (!order.returnInfo) order.returnInfo = {};
+        if (!order.returnInfo.returnedAt) order.returnInfo.returnedAt = new Date();
+        return;
+    }
+
+    const allTerminal = order.items.every(item => item.status === "RETURNED" || item.status === "CANCELLED");
+    if (allTerminal && order.items.some(item => item.status === "RETURNED")) {
+        order.orderStatus = "RETURNED";
+        if (!order.returnInfo) order.returnInfo = {};
+        if (!order.returnInfo.returnedAt) order.returnInfo.returnedAt = new Date();
+        return;
+    }
+};
+
+const toggleStatusService = async (params, body) => {
+    const orderId = params.id;
+    const status = body?.status?.trim();
+    const reason = (body?.reason || "").trim();
+
+    console.log(body, params);
+
+    if (!orderId) {
+        throw new Error("OrderId is not passed");
+    }
+    if (!status) {
+        throw new Error("Status is not passed");
+    }
+
+    const order = await Order.findOne({ _id: orderId });
 
     if (!order) {
         throw new Error("Order is not found");
     }
-
 
     const currentStatus = order.orderStatus;
 
@@ -540,360 +621,438 @@ const toggleStatusService=async(params,body)=>{
         }
     }
 
-    if(status=="CANCELLED"){
+    const date = new Date();
 
-         if(!reason ||reason==""){
-        throw new Error("Reason is not passed")
-    }
-
-  const date=new Date()
-        
-   order.cancellation.reason=reason
-   order.cancellation.at=date
-   order.cancellation.by="ADMIN"
-
-    }
-
-
-     if(status=="RETURN_REJECTED"){
-
-         if(!reason || reason.trim().length < 8){
-             throw new Error("Rejection reason must be at least 8 characters")
-         }
-
-         const date=new Date()
-        
-         order.returnInfo.rejectionReason=reason.trim()
-         order.returnInfo.rejectedAt=date
-
-         const requestedItems = order.items.filter(item => item.status == "RETURN_REQUESTED")
-         requestedItems.forEach(item => {
-             item.status = "RETURN_REJECTED"
-             item.returnInfo = item.returnInfo || {}
-             item.returnInfo.rejectionReason = reason.trim()
-             item.returnInfo.rejectedAt = date
-         })
-
-    }
-
-     if(status=="RETURN_APPROVED"){
-
-  const date=new Date()
-        
-   order.returnInfo.approvedAt=date
-
-   const requestedItems=order.items.filter(item=>item.status=="RETURN_REQUESTED")
-
-   requestedItems.forEach(item=>item.status="RETURN_APPROVED")
-
-    }
-
-    if (status == "RETURNED") {
-        const date = new Date();
-        order.returnInfo.returnedAt = date;
-
-        const returnItem=order.items.filter(item=>item.status=="RETURN_APPROVED")
-
-        const returnPrice=returnItem.reduce((acc,item)=>{
-            acc+=item.itemTotal
-            return acc
-        },0)
-
-        if(order.deliveryCharge>0){
-            returnPrice-=order.deliveryCharge
+    if (status === "CANCELLED") {
+        if (!reason || reason.length < 8) {
+            throw new Error("Cancellation reason must be at least 8 characters");
         }
 
+        order.cancellation = order.cancellation || {};
+        order.cancellation.reason = reason;
+        order.cancellation.at = date;
+        order.cancellation.by = "ADMIN";
 
+        // Reupdate stock while cancelling items
+        for (const item of order.items) {
+            if (item.status !== "CANCELLED") {
+                await restoreItemStock(item);
+                item.status = "CANCELLED";
+                item.cancellation = { reason, at: date, by: "ADMIN" };
+                item.refundStatus = "REFUNDED";
+            }
+        }
+
+        // Refund if Razorpay or Wallet and order is paid
+        const isPrepaidOrWallet = ["RAZORPAY", "WALLET"].includes(order.payment?.method);
+        const isPaid = order.payment?.status === "PAID";
+        if (isPrepaidOrWallet && isPaid) {
+            const alreadyRefunded = Number(order.payment?.refundedAmount) || 0;
+            const refundAmount = Math.max(0, Number((order.pricing.totalAmount - alreadyRefunded).toFixed(2)));
+            if (refundAmount > 0) {
+                await processWalletTransactionService({
+                    userId: order.user,
+                    amount: refundAmount,
+                    type: "CREDIT",
+                    source: "ORDER_REFUND",
+                    orderId: order._id,
+                    description: `Refund for cancelled order ${order.orderId}`
+                });
+                order.payment.refundedAmount = Number((alreadyRefunded + refundAmount).toFixed(2));
+                order.payment.status = "REFUNDED";
+                order.refundStatus = "REFUNDED";
+            }
+        }
+        order.orderStatus = "CANCELLED";
+    }
+    else if (status === "RETURN_REJECTED") {
+        if (!reason || reason.length < 8) {
+            throw new Error("Rejection reason must be at least 8 characters");
+        }
+
+        order.returnInfo = order.returnInfo || {};
+        order.returnInfo.rejectionReason = reason;
+        order.returnInfo.rejectedAt = date;
+
+        const requestedItems = order.items.filter(item => item.status === "RETURN_REQUESTED");
+        requestedItems.forEach(item => {
+            item.status = "RETURN_REJECTED";
+            item.returnInfo = item.returnInfo || {};
+            item.returnInfo.rejectionReason = reason;
+            item.returnInfo.rejectedAt = date;
+        });
+        order.orderStatus = "RETURN_REJECTED";
+    }
+    else if (status === "RETURN_APPROVED") {
+        order.returnInfo = order.returnInfo || {};
+        order.returnInfo.approvedAt = date;
+
+        const requestedItems = order.items.filter(item => item.status === "RETURN_REQUESTED");
+        requestedItems.forEach(item => {
+            item.status = "RETURN_APPROVED";
+            item.returnInfo = item.returnInfo || {};
+            item.returnInfo.approvedAt = date;
+        });
+        order.orderStatus = "RETURN_APPROVED";
+        // NOTE: Refund only after the status "RETURNED"!
+    }
+    else if (status === "RETURNED") {
+        order.returnInfo = order.returnInfo || {};
+        order.returnInfo.returnedAt = date;
+
+        let returnItems = order.items.filter(item => item.status === "RETURN_APPROVED");
+        if (returnItems.length === 0 && currentStatus === "RETURN_APPROVED") {
+            returnItems = order.items.filter(item => item.status !== "CANCELLED" && item.status !== "RETURNED");
+        }
+
+        let totalReturnRefund = 0;
+        for (const item of returnItems) {
+            item.status = "RETURNED";
+            item.returnInfo = item.returnInfo || {};
+            item.returnInfo.returnedAt = date;
+
+            // Re-update stock after "RETURNED"
+            await restoreItemStock(item);
+
+            // Refund price: All item price + distributed tax amount (without shipping charge and without coupon discount)
+            if (item.refundStatus !== "REFUNDED") {
+                const itemRefund = getItemReturnRefundAmount(order, item);
+                totalReturnRefund += itemRefund;
+                item.refundStatus = "REFUNDED";
+                item.refundedAmount = itemRefund;
+            }
+        }
+
+        totalReturnRefund = Number(totalReturnRefund.toFixed(2));
+        if (totalReturnRefund > 0) {
             await processWalletTransactionService({
                 userId: order.user,
-                amount: returnPrice,
+                amount: totalReturnRefund,
                 type: "CREDIT",
-                source: "ORDER_REFUND",
+                source: "ORDER_RETURN",
                 orderId: order._id,
                 description: `Refund for returned order ${order.orderId}`
             });
-        
+
+            const alreadyRefunded = Number(order.payment?.refundedAmount) || 0;
+            order.payment.refundedAmount = Number((alreadyRefunded + totalReturnRefund).toFixed(2));
+            const maxRefundable = order.pricing.totalAmount - (order.pricing.shippingCharge || 0);
+            order.payment.status = order.payment.refundedAmount >= maxRefundable ? "REFUNDED" : "PARTIALLY_REFUNDED";
+            order.refundStatus = "REFUNDED";
+        }
+
+        order.orderStatus = "RETURNED";
     }
-    
+    else {
+        order.orderStatus = status;
+        if (status === "DELIVERED") {
+            order.deliveredAt = date;
+        }
 
-    const items = order.items.filter(item =>
-  !["RETURNED", "RETURN_REQUESTED", "RETURN_REJECTED", "CANCELLED"].includes(item.status)
-)
+        const items = order.items.filter(item =>
+            !["RETURNED", "RETURN_REQUESTED", "RETURN_REJECTED", "CANCELLED", "RETURN_APPROVED"].includes(item.status)
+        );
 
-    order.orderStatus=status
+        items.forEach(item => {
+            item.status = status;
+            if (!item.statusTimeline) item.statusTimeline = [];
+            item.statusTimeline.push({ status, at: date });
+        });
+    }
+
+    checkAndSyncOrderStatus(order);
+    await order.save();
+
+    return {
+        success: true
+    };
+};
+
+const cancelOrderService = async (params, body) => {
+    const orderId = params.orderId;
+    const reason = (body?.reason || params?.reason || "").trim();
+
+    if (!orderId) {
+        throw new Error("Order Id is not passed");
+    }
+    if (!reason) {
+        throw new Error("Reason is not passed");
+    }
+
+    const order = await Order.findOne({ _id: orderId });
+    if (!order) {
+        throw new Error("Order is not found");
+    }
+
+    const allowedStatusesForCancellation = ["PLACED", "SHIPPED", "OUT_OF_DELIVERY"];
+    if (!allowedStatusesForCancellation.includes(order.orderStatus)) {
+        throw new Error("Order cancellation is not allowed in this state");
+    }
+
+    if (order.orderStatus === "PENDING") {
+        throw new Error("Order is not placed");
+    }
+    if (order.orderStatus === "DELIVERED" || order.orderStatus === "RETURNED") {
+        throw new Error("This Order is already delivered or returned");
+    }
+    if (order.orderStatus === "CANCELLED") {
+        throw new Error("This Order is already cancelled");
+    }
+
+    const date = new Date();
+
+    // Reupdate stock while cancelling items or order
+    for (const item of order.items) {
+        if (item.status !== "CANCELLED") {
+            await restoreItemStock(item);
+            item.status = "CANCELLED";
+            item.cancellation = { reason, at: date, by: "USER" };
+            item.refundStatus = "REFUNDED";
+        }
+    }
+
+    // If Razorpay or Wallet, refund fullAmount to wallet
+    const isPrepaidOrWallet = ["RAZORPAY", "WALLET"].includes(order.payment?.method);
+    const isPaid = order.payment?.status === "PAID";
+    if (isPrepaidOrWallet && isPaid) {
+        const alreadyRefunded = Number(order.payment?.refundedAmount) || 0;
+        const refundAmount = Math.max(0, Number((order.pricing.totalAmount - alreadyRefunded).toFixed(2)));
+        if (refundAmount > 0) {
+            await processWalletTransactionService({
+                userId: order.user,
+                amount: refundAmount,
+                type: "CREDIT",
+                source: "ORDER_REFUND",
+                orderId: order._id,
+                description: `Refund for cancelled order ${order.orderId}`
+            });
+            order.payment.refundedAmount = Number((alreadyRefunded + refundAmount).toFixed(2));
+            order.payment.status = "REFUNDED";
+            order.refundStatus = "REFUNDED";
+        }
+    }
+
+    order.orderStatus = "CANCELLED";
+    order.cancellation = { reason, at: date, by: "USER" };
+
+    await order.save();
+
+    return {
+        success: true
+    };
+};
+
+const cancelProductService = async (params, body) => {
+    const orderId = params.orderId;
+    const productId = params.productId;
+    const reason = (body?.reason || params?.reason || "").trim();
+
+    if (!orderId) {
+        throw new Error("OrderId is not passed");
+    }
+    if (!productId) {
+        throw new Error("ProductId is not passed");
+    }
+    if (!reason) {
+        throw new Error("Reason is not passed");
+    }
+
+    const order = await Order.findOne({ _id: orderId });
+    if (!order) {
+        throw new Error("Order is not found");
+    }
+
+    if (order.orderStatus === "PENDING") {
+        throw new Error("Order is not placed");
+    }
+
+    if (["DELIVERED", "RETURNED", "RETURN_APPROVED", "RETURN_REQUESTED"].includes(order.orderStatus)) {
+        throw new Error("Product cancellation is not allowed in this order state");
+    }
+
+    const item = order.items.find(item => 
+        item.product?.toString() === productId?.toString() || item._id?.toString() === productId?.toString()
+    );
+
+    if (!item) {
+        throw new Error("Item not found in this order");
+    }
+
+    const allowedStatusesForCancellation = ["PLACED", "SHIPPED", "OUT_OF_DELIVERY"];
+    if (!allowedStatusesForCancellation.includes(item.status) || item.status === "RETURN_APPROVED") {
+        throw new Error("Cancellation is not allowed for this item status");
+    }
+
+    if (item.status === "CANCELLED") {
+        throw new Error("This Item is already cancelled");
+    }
+
+    const date = new Date();
+
+    // Reupdate stock while cancelling items
+    await restoreItemStock(item);
+
+    // If Razorpay or Wallet, refund to wallet
+    const isPrepaidOrWallet = ["RAZORPAY", "WALLET"].includes(order.payment?.method);
+    const isPaid = order.payment?.status === "PAID";
+    if (isPrepaidOrWallet && isPaid && item.refundStatus !== "REFUNDED") {
+        const alreadyRefunded = Number(order.payment?.refundedAmount) || 0;
+        const remainingUnrefunded = Math.max(0, Number((order.pricing.totalAmount - alreadyRefunded).toFixed(2)));
+        const otherActiveItems = order.items.filter(i => 
+            i._id.toString() !== item._id.toString() && i.status !== "CANCELLED"
+        );
+        const itemRefund = getItemReturnRefundAmount(order, item);
+        const refundAmount = (otherActiveItems.length === 0) 
+            ? remainingUnrefunded 
+            : Math.min(itemRefund, remainingUnrefunded);
+
+        if (refundAmount > 0) {
+            await processWalletTransactionService({
+                userId: order.user,
+                amount: refundAmount,
+                type: "CREDIT",
+                source: "ORDER_REFUND",
+                orderId: order._id,
+                description: `Refund for cancelled item: ${item.productName} (Order: ${order.orderId})`
+            });
+            item.refundStatus = "REFUNDED";
+            item.refundedAmount = refundAmount;
+            order.payment.refundedAmount = Number((alreadyRefunded + refundAmount).toFixed(2));
+            order.payment.status = order.payment.refundedAmount >= order.pricing.totalAmount ? "REFUNDED" : "PARTIALLY_REFUNDED";
+        }
+    }
+
+    item.status = "CANCELLED";
+    item.cancellation = { reason, at: date, by: "USER" };
+
+    checkAndSyncOrderStatus(order);
+    await order.save();
+
+    return {
+        success: true
+    };
+};
+
+const returnOrderService = async (params, body) => {
+    const orderId = params.orderId;
+    const reason = (body?.reason || params?.reason || "").trim();
+
+    if (!orderId) {
+        throw new Error("Order Id is not passed");
+    }
+    if (!reason) {
+        throw new Error("Reason is not passed");
+    }
+
+    const order = await Order.findOne({ _id: orderId });
+    if (!order) {
+        throw new Error("Order is not found");
+    }
+
+    if (order.orderStatus !== "DELIVERED") {
+        throw new Error("Order must be delivered before requesting return");
+    }
+
+    if (["RETURN_REQUESTED", "RETURN_REJECTED", "RETURN_APPROVED", "RETURNED"].includes(order.orderStatus)) {
+        throw new Error("This Order is already requested for return");
+    }
+
+    const date = new Date();
+    const items = order.items?.filter(item => 
+        !["RETURN_REQUESTED", "RETURN_APPROVED", "RETURNED", "CANCELLED"].includes(item.status)
+    );
 
     items.forEach(item => {
-        item.status = status;
-        if (!item.statusTimeline) item.statusTimeline = [];
-        item.statusTimeline.push({ status, at: new Date() });
+        item.status = "RETURN_REQUESTED";
+        item.returnInfo = item.returnInfo || {};
+        item.returnInfo.reason = reason;
+        item.returnInfo.requestedAt = date;
     });
 
-    if (status === "DELIVERED") {
-        order.deliveredAt = new Date();
+    order.orderStatus = "RETURN_REQUESTED";
+    order.returnInfo = { ...order.returnInfo, reason, requestedAt: date };
+
+    // NOTE: Refund only after the status "RETURNED" (by Admin)
+    await order.save();
+
+    return {
+        success: true
+    };
+};
+
+const returnProductService = async (params, body) => {
+    const orderId = params.orderId;
+    const productId = params.productId;
+    const reason = (body?.reason || params?.reason || "").trim();
+
+    if (!orderId) {
+        throw new Error("OrderId is not passed");
+    }
+    if (!productId) {
+        throw new Error("ProductId is not passed");
+    }
+    if (!reason) {
+        throw new Error("Reason is not passed");
     }
 
-
-    await order.save()
-
-    return{
-        success:true
-    }
-}
-
-
-
-const cancelOrderService=async(params)=>{
-   const orderId=params.orderId
-   const reason=params?.reason?.trim()
-
-   if(!orderId){
-    throw new Error("Order Id is not passed")
-   }
-
-   const order=await Order.findOne({_id:orderId})
-
-   if(!order){
-    throw new Error("Order is not found")
-   }
-   if(!reason){
-    throw new Error("Reason is not passed")
-   }
-
-   const allowedStatusesForCancellation = ["PLACED", "SHIPPED", "OUT_OF_DELIVERY"];
-
-    if (!allowedStatusesForCancellation.includes(order.orderStatus)) {
-        throw new Error(`Order cancellation is not allowed in this time`);
+    const order = await Order.findOne({ _id: orderId });
+    if (!order) {
+        throw new Error("Order is not found");
     }
 
-   if(order.orderStatus=="PENDING"){
-    throw new Error("Order is not placed")
-   }
-
-   if(order.orderStatus==("DELIVERED"||"RETURNED")){
-    throw new Error("This Order allready Delivered")
-   }
-
-   if(order.orderStatus=="CANCELLED"){
-    throw new Error("This Order allready Cancelled")
-   }
-
-   const items=order.items?.filter(item=>item.status!="CANCELLED")
-
-   console.log("items",items)
-   items.map(item=>item.status="CANCELLED")
-
-   order.orderStatus="CANCELLED"
-
-   const date=new Date()
-    
-   order.cancellation.at=date
-   order.cancellation.reason=reason
-
-   await order.save()
-
-   return{
-    success:true
-   }
-
-}
-
-
-
-const cancelProductService=async(params,body)=>{
-const orderId=params.orderId
-const productId=params.productId
-const reason=body?.reason?.trim()
-
-if(!orderId){
-    throw new Error("OrderId is not passed")
-}
-if(!productId){
-    throw new Error("ProductId is not passed")
-}
-
-const order=await Order.findOne({_id:orderId})
-
-if(!order){
-    throw new Error("Order is not found")
-}
- if(order.orderStatus=="PENDING"){
-    throw new Error("Order is not placed")
-   }
-
-   if(order.orderStatus==("DELIVERED"||"RETURNED")){
-    throw new Error("This Order allready Delivered")
-   }
-
-   const item=order.items.find(item=>item.product==productId)
-
-   if(!item){
-    throw new Error("Item not found in this order")
-   }
-
-   const allowedStatusesForCancellation = ["PLACED", "SHIPPED", "OUT_OF_DELIVERY"];
-
-    if (!allowedStatusesForCancellation.includes(item.status)) {
-        throw new Error(`Cancellation is not allowed for this time`);
+    if (order.orderStatus !== "DELIVERED") {
+        throw new Error("Order must be delivered before requesting return");
     }
 
-   if(item.status=="CANCELLED"){
-    throw new Error("This Item allready cancelled")
-   }
+    const item = order.items.find(item => 
+        item.product?.toString() === productId?.toString() || item._id?.toString() === productId?.toString()
+    );
 
-   const date=new Date()
-
-   item.status="CANCELLED"
-   item.cancellation.reason=reason
-   item.cancellation.at=date
-   item.cancellation.by="USER"
-
-   await order.save()
-
-   return {
-    success:true
-   }
-}
-
-
-
-
-
-
-
-
-
-
-const returnOrderService=async(params,body)=>{
-   const orderId=params.orderId
-   const reason=body?.reason?.trim()
-   if(!orderId){
-    throw new Error("Order Id is not passed")
-   }
-
-   if(!reason){
-    throw new Error("Reason is not passed")
-   }
-   const order=await Order.findOne({_id:orderId})
-
-   if(!order){
-    throw new Error("Order is not found")
-   }
-
-   if(!order.orderStatus=="DELIVERED"){
-    throw new Error("Order is not delivered")
-   }
-
-
-   if(["RETURN_REQUESTED","RETURN_REJECTED","RETURN_APPROVED","RETURNED"].includes(order.orderStatus)){
-    throw new Error("This Order Allready requested for Return")
-   }
-
-   const items=order.items?.filter(item=>item.status!="RETURN_REQUESTED")
-
-
-   console.log("items",items)
-
-   items.map(item=>item.status="RETURN_REQUESTED")
-
-   const date=new Date()
-
-   order.orderStatus="RETURN_REQUESTED"
-   order.returnInfo = { ...order.returnInfo, reason: reason,requestedAt:date}
-   await order.save()
-
-   return{
-    success:true
-   }
-
-}
-
-
-
-const returnProductService=async(params,body)=>{
-const orderId=params.orderId
-const productId=params.productId
-const reason=body?.reason?.trim()
-
-
-if(!orderId){
-    throw new Error("OrderId is not passed")
-}
-if(!productId){
-    throw new Error("ProductId is not passed")
-}
-
-const order=await Order.findOne({_id:orderId})
-
-
-   if(!order){
-    throw new Error("Order is not found")
-   }
-
-
-   if(["RETURN_REQUESTED","RETURN_REJECTED","RETURNED"].includes(order.orderStatus)){
-    throw new Error("This Order Allready requested for Return")
-   }
-
-   if(!order.orderStatus=="DELIVERED"){
-    throw new Error("Order is not delivered")
-   }
-
-   const item=order.items.find(item=>item.product==productId)
-
-   if(!item){
-    throw new Error("Item not found in this order")
-   }
-
-   if(["RETURN_REQUESTED","RETURN_REJECTED","RETURN_APPROVED","RETURNED"].includes(item.status)){
-    throw new Error("This Item allready Requested for Return")
-   }
-
-   const date=new Date()
-
-   item.status="RETURN_REQUESTED"
-   item.returnInfo.reason=reason
-   item.returnInfo.requestedAt=date
-
-   await order.save()
-
-   return {
-    success:true
-   }
-}
-
-
-
-
-
-
-
-
-
-const toggleItemService=async(params,body)=>{
-
-    const orderId=params.orderId
-    const itemId=params.itemId
-    const status=body?.status?.trim()
-    const reason=body?.reason?.trim()
-
-    console.log(status,"STTU")
-    
-
-    if(!orderId){
-        throw new Error("OrderId is not passed")
-    }
-    if(!status){
-        throw new Error("Status is not passed")
-    }
-   
-
-    const order=await Order.findOne({_id:orderId})
-
-    if(!order){
-        throw new Error("Order is not found")
+    if (!item) {
+        throw new Error("Item not found in this order");
     }
 
-    const item = order.items.find(item => item.product?.toString() === itemId.toString() || item._id?.toString() === itemId.toString())
+    if (["RETURN_REQUESTED", "RETURN_REJECTED", "RETURN_APPROVED", "RETURNED"].includes(item.status)) {
+        throw new Error("This Item is already requested for return");
+    }
+
+    const date = new Date();
+    item.status = "RETURN_REQUESTED";
+    item.returnInfo = item.returnInfo || {};
+    item.returnInfo.reason = reason;
+    item.returnInfo.requestedAt = date;
+
+    // NOTE: Refund only after the status "RETURNED" (by Admin)
+    await order.save();
+
+    return {
+        success: true
+    };
+};
+
+const toggleItemService = async (params, body) => {
+    const orderId = params.orderId;
+    const itemId = params.itemId;
+    const status = body?.status?.trim();
+    const reason = (body?.reason || "").trim();
+
+    console.log(status, "STTU");
+
+    if (!orderId) {
+        throw new Error("OrderId is not passed");
+    }
+    if (!status) {
+        throw new Error("Status is not passed");
+    }
+
+    const order = await Order.findOne({ _id: orderId });
+    if (!order) {
+        throw new Error("Order is not found");
+    }
+
+    const item = order.items.find(item => 
+        item.product?.toString() === itemId.toString() || item._id?.toString() === itemId.toString()
+    );
 
     if (!item) {
         throw new Error("Item is not found in this order");
@@ -901,9 +1060,10 @@ const toggleItemService=async(params,body)=>{
 
     const currentStatus = item.status;
 
-    if (currentStatus === "DELIVERED" || currentStatus === "RETURNED" || currentStatus === "CANCELLED" || currentStatus === "RETURN_REJECTED") {
+    if (["DELIVERED", "RETURNED", "CANCELLED", "RETURN_REJECTED"].includes(currentStatus)) {
         throw new Error(`Item is already in ${currentStatus} state. Status cannot be changed.`);
     }
+
     if (currentStatus === "PLACED") {
         if (!["SHIPPED", "CANCELLED"].includes(status)) {
             throw new Error("Invalid status transition. From PLACED, you can only change to SHIPPED or CANCELLED.");
@@ -930,61 +1090,105 @@ const toggleItemService=async(params,body)=>{
         }
     }
 
-    if(status=="CANCELLED"){
+    const date = new Date();
 
-         if(!reason ||reason==""){
-        throw new Error("Reason is not passed")
+    if (status === "CANCELLED") {
+        if (!reason || reason.length < 8) {
+            throw new Error("Cancellation reason must be at least 8 characters");
+        }
+
+        item.cancellation = item.cancellation || {};
+        item.cancellation.reason = reason;
+        item.cancellation.at = date;
+        item.cancellation.by = "ADMIN";
+
+        // Reupdate stock while cancelling items
+        await restoreItemStock(item);
+
+        // If Razorpay or Wallet, refund to wallet
+        const isPrepaidOrWallet = ["RAZORPAY", "WALLET"].includes(order.payment?.method);
+        const isPaid = order.payment?.status === "PAID";
+        if (isPrepaidOrWallet && isPaid && item.refundStatus !== "REFUNDED") {
+            const alreadyRefunded = Number(order.payment?.refundedAmount) || 0;
+            const remainingUnrefunded = Math.max(0, Number((order.pricing.totalAmount - alreadyRefunded).toFixed(2)));
+            const otherActiveItems = order.items.filter(i => 
+                i._id.toString() !== item._id.toString() && i.status !== "CANCELLED"
+            );
+            const itemRefund = getItemReturnRefundAmount(order, item);
+            const refundAmount = (otherActiveItems.length === 0) 
+                ? remainingUnrefunded 
+                : Math.min(itemRefund, remainingUnrefunded);
+
+            if (refundAmount > 0) {
+                await processWalletTransactionService({
+                    userId: order.user,
+                    amount: refundAmount,
+                    type: "CREDIT",
+                    source: "ORDER_REFUND",
+                    orderId: order._id,
+                    description: `Refund for cancelled item: ${item.productName} (Order: ${order.orderId})`
+                });
+                item.refundStatus = "REFUNDED";
+                item.refundedAmount = refundAmount;
+                order.payment.refundedAmount = Number((alreadyRefunded + refundAmount).toFixed(2));
+                order.payment.status = order.payment.refundedAmount >= order.pricing.totalAmount ? "REFUNDED" : "PARTIALLY_REFUNDED";
+            }
+        }
+    }
+    else if (status === "RETURN_REJECTED") {
+        if (!reason || reason.length < 8) {
+            throw new Error("Rejection reason must be at least 8 characters");
+        }
+        item.returnInfo = item.returnInfo || {};
+        item.returnInfo.rejectionReason = reason;
+        item.returnInfo.rejectedAt = date;
+    }
+    else if (status === "RETURN_APPROVED") {
+        item.returnInfo = item.returnInfo || {};
+        item.returnInfo.approvedAt = date;
+        // NOTE: Refund ONLY happens after the status is "RETURNED"!
+    }
+    else if (status === "RETURNED") {
+        item.returnInfo = item.returnInfo || {};
+        item.returnInfo.returnedAt = date;
+
+        // Reupdate stock after "RETURNED"
+        await restoreItemStock(item);
+
+        // Single product refund: item price + distributed tax amount (without shipping charge and without coupon discount)
+        if (item.refundStatus !== "REFUNDED") {
+            const refundAmount = getItemReturnRefundAmount(order, item);
+            if (refundAmount > 0) {
+                await processWalletTransactionService({
+                    userId: order.user,
+                    amount: refundAmount,
+                    type: "CREDIT",
+                    source: "ORDER_RETURN",
+                    orderId: order._id,
+                    description: `Refund for returned item: ${item.productName} (Order: ${order.orderId})`
+                });
+                item.refundStatus = "REFUNDED";
+                item.refundedAmount = refundAmount;
+
+                const alreadyRefunded = Number(order.payment?.refundedAmount) || 0;
+                order.payment.refundedAmount = Number((alreadyRefunded + refundAmount).toFixed(2));
+                const maxRefundable = order.pricing.totalAmount - (order.pricing.shippingCharge || 0);
+                order.payment.status = order.payment.refundedAmount >= maxRefundable ? "REFUNDED" : "PARTIALLY_REFUNDED";
+            }
+        }
     }
 
-  const date=new Date()
-        
-   item.cancellation.reason=reason
-   item.cancellation.at=date
-   item.cancellation.by="ADMIN"
-    }
+    item.status = status;
+    if (!item.statusTimeline) item.statusTimeline = [];
+    item.statusTimeline.push({ status, at: date });
 
+    checkAndSyncOrderStatus(order);
+    await order.save();
 
-
-    
-    if(status=="RETURN_REJECTED"){
-
-         if(!reason || reason.trim().length < 8){
-             throw new Error("Rejection reason must be at least 8 characters")
-         }
-
-         const date=new Date()
-        
-         item.returnInfo = item.returnInfo || {}
-         item.returnInfo.rejectionReason=reason.trim()
-         item.returnInfo.rejectedAt=date
-    }
-
-
-
-
- if(status=="RETURN_APPROVED"){
-
-
-  const date=new Date()
-        
-   item.returnInfo.approvedAt=date
-    }
-
-    console.log("YAZZZ",status)
-
-item.status=status
-if (!item.statusTimeline) item.statusTimeline = [];
-item.statusTimeline.push({ status, at: new Date() });
-console.log("IN",item)
-
-
-await order.save()
-
-    return{
-        success:true
-    }
-}
-
+    return {
+        success: true
+    };
+};
 
 
 

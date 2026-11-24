@@ -1,684 +1,804 @@
-import React, { useState,useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import './CouponManagement.css';
 import { useForm } from 'react-hook-form';
+import { toast, ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import axiosInstance from '../../../utils/axiosInstance';
-import AdminSidebar from "../../../partials/AdminSidebar/AdminSidebar"
+import AdminSidebar from "../../../partials/AdminSidebar/AdminSidebar";
 
 export default function CouponManagement() {
   const [coupons, setCoupons] = useState([]);
-  const [deleteCoupon,setDeleteCoupon]=useState(null)
+  const [deleteCoupon, setDeleteCoupon] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingCoupon, setEditingCoupon] = useState(null);
 
-  const { register, handleSubmit, reset, watch,formState: { errors }} = useForm({
-  defaultValues: {
-    name: '',
-    code: '',
-    expiryDate: '',
-    usageCount: '',
-    minCart: '',
-    maxDiscount: '',
-    discountType: 'Percentage', 
-    discountValue: ''
-  }
-});
-
-const [newError,setNewError]=useState("")
- const [isEditModalOpen,setIsEditModalOpen]=useState(false)
-
- const fetchCoupons=async()=>{
-    try{
-        const response=await axiosInstance.get("/admin/coupon/getCoupon")
-        if(response?.data?.success==true){
-            console.log("RRR",response.data?.data)
-            setCoupons(response?.data?.data)
-        }
-    }catch(error){
-        console.log(error?.response?.data?.message||"Something went wrong")
+  const addForm = useForm({
+    defaultValues: {
+      name: '',
+      code: '',
+      expiryDate: '',
+      usageCount: '',
+      minCart: '',
+      maxDiscount: '',
+      discountType: 'Percentage',
+      discountValue: ''
     }
-}
+  });
 
- const handleEditClick=(x)=>{
-    console.log("jjj",x.expiryDate)
-    setNewError("")
-    reset({...x,  expiryDate: x.expiryDate
-      ? new Date(x.expiryDate).toISOString().split("T")[0]
-      : ""})
-    setIsEditModalOpen(true)
- }
-
- const editCoupon=async (data)=>{
-    try{
-       const response=await axiosInstance.put(`admin/coupon/editCoupon/${data._id}`,{
-             name: data.name,
-    code: data.code,
-    expiryDate: data.expiryDate,
-    usageCount: data.usageCount,
-    minCart: data.minCart,
-    maxDiscount: data.maxDiscount||"",
-    discountType: data.discountType,
-    discountValue: data.discountValue
-        })
-       if(response.data?.success==true){
-        setNewError("")
-        setIsEditModalOpen(false)
-        fetchCoupons()
-       }
-       else{
-        setNewError(response?.data?.message||"Something went wrong")
-       }
-
-       console.log("response",response.data)
-    }catch(error){
-        setNewError(error?.response?.data?.message||"something went wrong")
-      console.log(error?.response?.data?.message)
-    }finally{
-          reset( {name: '',
-    code: '',
-    expiryDate: '',
-    usageCount: '',
-    minCart: '',
-    maxDiscount: '',
-    discountType: 'Percentage', 
-    discountValue: ''})
+  const editForm = useForm({
+    defaultValues: {
+      name: '',
+      code: '',
+      expiryDate: '',
+      usageCount: '',
+      minCart: '',
+      maxDiscount: '',
+      discountType: 'Percentage',
+      discountValue: ''
     }
- }
+  });
 
- const handleDelete=async()=>{
-    try{
-        const response=await axiosInstance.delete(`/admin/coupon/deleteCoupon/${deleteCoupon?._id}`)
-        if(response?.data?.success==true){
-            fetchCoupons()
-        }
-    }catch(error){
-         console.log(error?.response?.data?.message)
-    }finally{
-        setDeleteCoupon(null)
+  const addDiscountType = addForm.watch("discountType");
+  const addMinCart = addForm.watch("minCart");
+
+  const editDiscountType = editForm.watch("discountType");
+  const editMinCart = editForm.watch("minCart");
+
+  const fetchCoupons = async () => {
+    try {
+      const response = await axiosInstance.get("/admin/coupon/getCoupon");
+      if (response?.data?.success) {
+        setCoupons(response.data?.data || []);
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to fetch coupons");
     }
- }
+  };
 
- const handleCancelDelete=async()=>{
-    console.log("LLL")
-    setDeleteCoupon(null)
- }
+  useEffect(() => {
+    fetchCoupons();
+  }, []);
 
- 
+  const onAddSubmit = async (data) => {
+    try {
+      const response = await axiosInstance.post("/admin/coupon/addCoupon", {
+        name: data.name,
+        code: data.code,
+        expiryDate: data.expiryDate,
+        usageCount: data.usageCount,
+        minCart: data.minCart,
+        maxDiscount: data.discountType === 'Percentage' ? data.maxDiscount : "",
+        discountType: data.discountType,
+        discountValue: data.discountValue
+      });
 
-
-
-useEffect(()=>{
-fetchCoupons()
-},[])
-
-const selectedDiscountType=watch("discountType")
-  
-  const onSubmit=async(data)=>{
-    setNewError("")
-    try{
-        const response=await axiosInstance.post("/admin/coupon/addCoupon",{
-             name: data.name,
-    code: data.code,
-    expiryDate: data.expiryDate,
-    usageCount: data.usageCount,
-    minCart: data.minCart,
-    maxDiscount: data.maxDiscount||"",
-    discountType: data.discountType,
-    discountValue: data.discountValue
-        })
-
-        if(response?.data?.success==true){
-            setNewError("")
-            fetchCoupons()
-        }
-    }catch(error){
-        setNewError(error.response?.data?.message||"Something went wrong")
+      if (response?.data?.success) {
+        toast.success(response.data?.message || "Coupon added successfully");
+        addForm.reset({
+          name: '',
+          code: '',
+          expiryDate: '',
+          usageCount: '',
+          minCart: '',
+          maxDiscount: '',
+          discountType: 'Percentage',
+          discountValue: ''
+        });
+        fetchCoupons();
+      } else {
+        toast.error(response?.data?.message || "Failed to add coupon");
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to add coupon");
     }
+  };
 
-  }
+  const onAddError = (errors) => {
+    const firstKey = Object.keys(errors)[0];
+    if (firstKey && errors[firstKey]?.message) {
+      toast.error(errors[firstKey].message);
+    }
+  };
 
-  const handleCancel=()=>{
-    reset( {name: '',
-    code: '',
-    expiryDate: '',
-    usageCount: '',
-    minCart: '',
-    maxDiscount: '',
-    discountType: 'Percentage', 
-    discountValue: ''})
-    setNewError("")
-    setIsEditModalOpen(false)
-  }
+  const handleCancelAdd = () => {
+    addForm.reset({
+      name: '',
+      code: '',
+      expiryDate: '',
+      usageCount: '',
+      minCart: '',
+      maxDiscount: '',
+      discountType: 'Percentage',
+      discountValue: ''
+    });
+  };
 
+  const handleEditClick = (coupon) => {
+    setEditingCoupon(coupon);
+    editForm.reset({
+      name: coupon.name || '',
+      code: coupon.code || '',
+      expiryDate: coupon.expiryDate
+        ? new Date(coupon.expiryDate).toISOString().split("T")[0]
+        : '',
+      usageCount: coupon.usageCount ?? '',
+      minCart: coupon.minCart ?? '',
+      maxDiscount: coupon.maxDiscount ?? '',
+      discountType: coupon.discountType || 'Percentage',
+      discountValue: coupon.discountValue ?? ''
+    });
+    setIsEditModalOpen(true);
+  };
 
+  const onEditSubmit = async (data) => {
+    if (!editingCoupon?._id) return;
+    try {
+      const response = await axiosInstance.put(`/admin/coupon/editCoupon/${editingCoupon._id}`, {
+        name: data.name,
+        code: data.code,
+        expiryDate: data.expiryDate,
+        usageCount: data.usageCount,
+        minCart: data.minCart,
+        maxDiscount: data.discountType === 'Percentage' ? data.maxDiscount : "",
+        discountType: data.discountType,
+        discountValue: data.discountValue
+      });
+
+      if (response?.data?.success) {
+        toast.success(response.data?.message || "Coupon updated successfully");
+        setIsEditModalOpen(false);
+        setEditingCoupon(null);
+        editForm.reset();
+        fetchCoupons();
+      } else {
+        toast.error(response?.data?.message || "Failed to update coupon");
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to update coupon");
+    }
+  };
+
+  const onEditError = (errors) => {
+    const firstKey = Object.keys(errors)[0];
+    if (firstKey && errors[firstKey]?.message) {
+      toast.error(errors[firstKey].message);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    editForm.reset();
+    setIsEditModalOpen(false);
+    setEditingCoupon(null);
+  };
+
+  const handleToggleStatus = async (couponId) => {
+    try {
+      const response = await axiosInstance.patch(`/admin/coupon/toggleStatus/${couponId}`);
+      if (response?.data?.success) {
+        toast.success(response.data.message || "Coupon status updated successfully");
+        fetchCoupons();
+      } else {
+        toast.error(response?.data?.message || "Failed to update coupon status");
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to update coupon status");
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteCoupon?._id) return;
+    try {
+      const response = await axiosInstance.delete(`/admin/coupon/deleteCoupon/${deleteCoupon._id}`);
+      if (response?.data?.success) {
+        toast.success(response.data.message || "Coupon deleted successfully");
+        fetchCoupons();
+      } else {
+        toast.error(response?.data?.message || "Failed to delete coupon");
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to delete coupon");
+    } finally {
+      setDeleteCoupon(null);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteCoupon(null);
+  };
 
   return (
     <>
+      <AdminSidebar />
+      <ToastContainer position="top-right" autoClose={3000} />
 
-    <AdminSidebar />
-
-    <div className="coupon-page-container">
-
-      {/* Header Section */}
-      <div className="coupon-header">
-        <h1 className="coupon-title">COUPON MANAGMENT</h1>
-        <p className="coupon-subtitle">Configure active promotional codes and discounts.</p>
-      </div>
-
-      {/* Generate New Code Card */}
-      <div className="card generate-card">
-        <form onSubmit={handleSubmit(onSubmit)} className="card generate-card">
-        <div className="card-section-title">GENERATE NEW CODE</div>
-        <div className="form-grid">
-            {newError && <p className="form-error">{newError}</p>}
-          <div className="form-group">
-            <label>COUPON NAME</label>
-        <input 
-  type="text" 
-  placeholder="e.g. Winter Sale"
-  {...register("name", {
-    required: "Name is required",
-    pattern: {
-      value: /^[a-zA-Z0-9\s]+$/,
-      message: "Only letters, numbers, and spaces are allowed"
-    },
-    validate: {
-      minLengthWithoutSpaces: (value) => 
-        value.replace(/\s/g, '').length >= 4 || "Name Must be at least 4 characters",
-      
-      minLetters: (value) => 
-        (value.match(/[a-zA-Z]/g) || []).length >= 2 || "Must contain at least 2 letters"
-    }
-  })}
-/>
-            {errors.name && (
-              <span className="error-message">{errors.name.message}</span>
-            )}
-          </div>
-          <div className="form-group">
-            <label>COUPON CODE</label>
-           <input
-  type="text"
-  maxLength={30}
-  placeholder="E.G. SNOW20"
-  {...register("code", {
-    required: "Code is required",
-    minLength: {
-      value: 8,
-      message: "Code must be at least 8 characters"
-    },
-    pattern: {
-      value: /^(?=(?:.*[A-Za-z]){4})\S+$/,
-      message: "Code must contain at least 4 letters and no spaces"
-    }
-  })}
-/>
-            {errors.code && (
-              <span className="error-message">{errors.code.message}</span>
-            )}
-          </div>
-
-        <div className="form-group">
-  <label>EXPIRY DATE</label>
- <input 
-  type="date"
-  min={new Date().toISOString().split("T")[0]}
-  onKeyDown={(e) => e.preventDefault()}
-  {...register("expiryDate", {
-    required: "Expiry date is required",
-    validate: {
-      notPast: (value) => {
-        const today = new Date().toISOString().split("T")[0];
-        return value >= today || "Past dates are not allowed";
-      }
-    }
-  })}
-/>
-  {errors.expiryDate && (
-              <span className="error-message">{errors.expiryDate.message}</span>
-            )}
-</div>
-          <div className="form-group">
-            <label>USAGE COUNT</label>
-            <input 
-  type="text" 
-  maxLength={6}
-  placeholder="eg:-100" 
-  {...register("usageCount", {
-    required: "Usage count is required",
-    pattern: {
-      value: /^[0-9]+$/,
-      message: "Only numbers are allowed"
-    }
-  })}
-/>
-{errors.usageCount && (
-              <span className="error-message">{errors.usageCount.message}</span>
-            )}
-          </div>
-
-
-          <div className="form-group">
-            <label>MIN CART VALUE</label>
-            <input 
-              type="text" 
-              placeholder="0.00"
-              maxLength={8} 
-            {...register("minCart", {
-    required: "Min cart value is required",
-    pattern: {
-      value: /^[0-9]+$/,
-      message: "Only numbers are allowed"
-    }
-  })}
-            />
-            {errors.minCart && (
-              <span className="error-message">{errors.minCart.message}</span>
-            )}
-          </div>
-
-          {/* Dynamic Discount Type Fields */}
-          <div className="form-group">
-            <label>Discount Type</label>
-            <select 
-             
-              {...register("discountType")}
-            >
-              <option value="Percentage">Percentage</option>
-              <option value="Flat">Flat Amount</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label>{selectedDiscountType === 'Percentage' ? 'Percentage %' : 'Flat Amount (₹)'}</label>
-        <input 
-  type="text" 
-  maxLength={5}
-  placeholder={selectedDiscountType === 'Percentage' ? 'e.g. 20' : 'e.g. 100'} 
-  {...register("discountValue", {
-    required: "Discount value is required",
-    maxLength: {
-      value: 5,
-      message: "Cannot exceed 5 digits"
-    },
-    pattern: {
-      value: /^[0-9]+$/,
-      message: "Only numbers are allowed"
-    },
-    validate: (value) => {
-      const num = Number(value);
-      
-      // Minimum value validation
-      if (num < 10) {
-        return "Value must be at least 10";
-      }
-
-      // Percentage max value validation
-      if (selectedDiscountType === 'Percentage' && num > 90) {
-        return "Percentage cannot exceed 90";
-      }
-
-      return true;
-    }
-  })}
-/>
-{errors.discountValue && (
-              <span className="error-message">{errors.discountValue.message}</span>
-            )}
-          </div>
-
-          {/* Max discount amount only appears if discount type is Percentage */}
-          {selectedDiscountType === 'Percentage' && (
-            <div className="form-group">
-              <label>Maximum discount Amount</label>
-           <input 
-  type="text" 
-  maxLength={5}
-  placeholder="0.00" 
-  {...register("maxDiscount", {
-    required: "Maximum discount amount is required",
-    maxLength: {
-      value: 5,
-      message: "Cannot exceed 5 digits"
-    },
-    pattern: {
-      value: /^[0-9]+$/,
-      message: "Only numbers are allowed"
-    },
-    validate: (value) => {
-      const num = Number(value);
-      if (num < 10) {
-        return "Value must be at least 10";
-      }
-      return true;
-    }
-  })}
-/>
-{errors.maxDiscount && (
-              <span className="error-message">{errors.maxDiscount.message}</span>
-            )}
-            </div>
-          )}
+      <div className="coupon-page-container">
+        {/* Header Section */}
+        <div className="coupon-header">
+          <h1 className="coupon-title">COUPON MANAGEMENT</h1>
+          <p className="coupon-subtitle">Configure active promotional codes and discounts.</p>
         </div>
 
-         <button
-            type="button"
-            className="cancel-btn"
-            onClick={ handleCancel}
-          >
-            CANCEL
-          </button>
-
-        <div className="button-container">
-          <button className="btn-black" type='submit'>ADD COUPON</button>
-        </div>
-        </form>
-      </div>
-
-       {/*Active Directory Table Card*/}
-
-      <div className="card table-card">
-        <div className="table-header-row">
-          <span className="table-section-title">ACTIVE DIRECTORY</span>
-          <span className="table-count">Showing {coupons?.length} of 12</span>
-        </div>
-        
-        <table className="coupon-table">
-          <thead>
-            <tr>
-              <th>CODE</th>
-              <th>DISCOUNT</th>
-              <th>EXPIRY DATE</th>
-              <th>TYPE</th>
-              <th>STATUS</th>
-              <th className="text-right">ACTIONS</th>
-            </tr>
-          </thead>
-          <tbody>
-            {coupons?.map((coupon) => (
-              <tr key={coupon.id} className={!coupon.status ? 'row-inactive' : ''}>
-                <td className="font-bold">{coupon.code}</td>
-                <td>{coupon.discountValue}</td>
-                <td>{coupon.expiryDate}</td>
-                <td>{coupon.discountType}</td>
-                <td>
-                  <label className="toggle-switch">
-                    <input 
-                      type="checkbox" 
-                      checked={coupon.status} 
-                      onChange={() => handleToggleStatus(coupon.id)} 
-                    />
-                    <span className="slider"></span>
-                  </label>
-                </td>
-                <td className="text-right action-icons">
-                  <button onClick={() => handleEditClick(coupon)} className="icon-btn" title="Edit">
-                    <span className="material-symbols-outlined">edit</span>
-                  </button>
-                  <button onClick={() => setDeleteCoupon(coupon)} className="icon-btn" title="Delete">
-                    <span className="material-symbols-outlined">delete</span>
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        {/* Pagination */}
-        {/* <div className="pagination-container">
-          <div className="pagination">
-            {[1, 2, 3].map((page) => (
-              <button 
-                key={page} 
-                className={`page-btn ${activePage === page ? 'active' : ''}`}
-                onClick={() => setActivePage(page)}
-              >
-                {page}
-              </button>
-            ))}
-          </div>
-        </div> */}
-      </div>
-
-      {/* Footer text */}
-      <div className="page-footer">
-        © 2024 Urban Sole Admin Panel. Internal Use Only.
-      </div>
-
-      {/* Edit Coupon Modal */}
-      {isEditModalOpen && (
-        <div className="modal-overlay">
-        <form onSubmit={handleSubmit(editCoupon)} className="card generate-card">
-          <div className="modal-content">
-            <div className="modal-header">
-              <div>
-                <h2>EDIT COUPON</h2>
-                <p>Update coupon details and discount settings</p>
-                {newError && <p className="form-error">{newError}</p>}
-
-              </div>
-              <button className="close-modal-btn" onClick={() => setIsEditModalOpen(false)}>
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-
-            <div className="modal-form-grid">
+        {/* Generate New Code Card */}
+        <div className="card generate-card">
+          <form onSubmit={addForm.handleSubmit(onAddSubmit, onAddError)}>
+            <div className="card-section-title">GENERATE NEW CODE</div>
+            <div className="form-grid">
               <div className="form-group">
                 <label>COUPON NAME</label>
-                <input 
-              type="text" 
-              placeholder="e.g. Winter Sale"
-               
-              {...register("name",{
-                required:"Name is required",
-                minLength: {
-    value: 4,
-    message: "Name must be 4 charecters"
-  },
-                pattern: {
-    value: /^[a-zA-Z0-9]+([a-zA-Z0-9\s]*[a-zA-Z0-9])?$/,
-    message: "Name can only contain letters and numbers"
-  }
-              })}
-            />
-            {errors.name && (
-              <span className="error-message">{errors.name.message}</span>
-            )}
+                <input
+                  type="text"
+                  placeholder="e.g. Winter Sale"
+                  {...addForm.register("name", {
+                    required: "Name is required",
+                    pattern: {
+                      value: /^[a-zA-Z0-9\s]+$/,
+                      message: "Only letters, numbers, and spaces are allowed"
+                    },
+                    validate: {
+                      minLengthWithoutSpaces: (value) =>
+                        value.replace(/\s/g, '').length >= 4 || "Name must be at least 4 characters",
+                      minLetters: (value) =>
+                        (value.match(/[a-zA-Z]/g) || []).length >= 2 || "Must contain at least 2 letters"
+                    }
+                  })}
+                />
+                {addForm.formState.errors.name && (
+                  <span className="error-message">{addForm.formState.errors.name.message}</span>
+                )}
               </div>
-
-
-              <div className="form-group">
-                <label>EXPIRY DATE</label>
-                <input 
-    type="date"
-    {...register("expiryDate",{
-        required:"Expiry date is required "
-    })}
-  />
-  {errors.expiryDate && (
-              <span className="error-message">{errors.expiryDate.message}</span>
-            )}
-              </div>
-
-
 
               <div className="form-group">
                 <label>COUPON CODE</label>
-                  <input 
-              type="text" 
-              placeholder="E.G. SNOW20" 
-            {...register("code",{
-  required: "Code is required",
-  minLength: {
-    value: 8,
-    message: "Name must be 8 charecters"
-  },
-  pattern: {
-    value: /^\S+$/,
-    message: "Spaces are not allowed"
-  }
-})}
-            />
-            {errors.code && (
-              <span className="error-message">{errors.code.message}</span>
-            )}
-              </div>
-              <div className="form-group">
-                <label>MINIMUM CART VALUE</label>
-                 <input 
-              type="text" 
-              placeholder="0.00"
-              maxLength={8} 
-            {...register("minCart", {
-    required: "Min cart value is required",
-    pattern: {
-      value: /^[0-9]+$/,
-      message: "Only numbers are allowed"
-    }
-  })}
-            />
-            {errors.minCart && (
-              <span className="error-message">{errors.minCart.message}</span>
-            )}
-              </div>
-
-              {/* Modal Dynamic Discount Type */}
-              <div className="form-group">
-                <label>Discount Type</label>
-                <select 
-             
-              {...register("discountType")}
-            >
-              <option value="Percentage">Percentage</option>
-              <option value="Flat">Flat Amount</option>
-            </select>
+                <input
+                  type="text"
+                  maxLength={30}
+                  placeholder="E.G. SNOW2024"
+                  {...addForm.register("code", {
+                    required: "Code is required",
+                    minLength: {
+                      value: 8,
+                      message: "Code must be at least 8 characters"
+                    },
+                    pattern: {
+                      value: /^(?=(?:.*[A-Za-z]){4})\S+$/,
+                      message: "Code must contain at least 4 letters and no spaces"
+                    }
+                  })}
+                />
+                {addForm.formState.errors.code && (
+                  <span className="error-message">{addForm.formState.errors.code.message}</span>
+                )}
               </div>
 
               <div className="form-group">
-                <label>{selectedDiscountType === 'Percentage' ? 'Percentage %' : 'Flat Amount (₹)'}</label>
-                 <input 
-  type="text" 
-  placeholder={selectedDiscountType === 'Percentage' ? 'e.g. 20' : 'e.g. 100'} 
-  {...register("discountValue", {
-    required: "Discount value is required",
-    pattern: {
-      value: /^[0-9]+$/,
-      message: "Only numbers are allowed"
-    },
-    validate: (value) => {
-      if (selectedDiscountType === 'Percentage' && Number(value) > 90) {
-        return "Percentage cannot exceed 90";
-      }
-      return true;
-    }
-  })}
-/>
-{errors.discountValue && (
-              <span className="error-message">{errors.discountValue.message}</span>
-            )}
+                <label>EXPIRY DATE</label>
+                <input
+                  type="date"
+                  min={new Date().toISOString().split("T")[0]}
+                  onKeyDown={(e) => e.preventDefault()}
+                  {...addForm.register("expiryDate", {
+                    required: "Expiry date is required",
+                    validate: {
+                      notPast: (value) => {
+                        const today = new Date().toISOString().split("T")[0];
+                        return value >= today || "Past dates are not allowed";
+                      }
+                    }
+                  })}
+                />
+                {addForm.formState.errors.expiryDate && (
+                  <span className="error-message">{addForm.formState.errors.expiryDate.message}</span>
+                )}
               </div>
 
               <div className="form-group">
                 <label>USAGE COUNT</label>
-                 <input 
-  type="number" 
-  placeholder="eg:-100" 
-  maxLength={4}
-  {...register("usageCount", {
-    required: "Usage count is required",
-    pattern: {
-      value: /^[0-9]+$/,
-      message: "Only numbers are allowed"
-    }
-  })}
-/>
-{errors.usageCount && (
-              <span className="error-message">{errors.usageCount.message}</span>
-            )}
+                <input
+                  type="text"
+                  maxLength={6}
+                  placeholder="e.g. 100"
+                  {...addForm.register("usageCount", {
+                    required: "Usage count is required",
+                    pattern: {
+                      value: /^[0-9]+$/,
+                      message: "Only numbers are allowed"
+                    },
+                    validate: (val) => {
+                      const num = Number(val);
+                      if (num < 10) return "Usage count must be at least 10";
+                      if (num > 10000) return "Usage count must be below 10000";
+                      return true;
+                    }
+                  })}
+                />
+                {addForm.formState.errors.usageCount && (
+                  <span className="error-message">{addForm.formState.errors.usageCount.message}</span>
+                )}
               </div>
 
-              {selectedDiscountType === 'Percentage' && (
+              <div className="form-group">
+                <label>MIN CART VALUE</label>
+                <input
+                  type="text"
+                  placeholder="0.00"
+                  maxLength={8}
+                  {...addForm.register("minCart", {
+                    required: "Min cart value is required",
+                    pattern: {
+                      value: /^[0-9]+$/,
+                      message: "Only numbers are allowed"
+                    },
+                    validate: (val) => {
+                      const num = Number(val);
+                      if (num < 10) return "Min cart value must be at least 10";
+                      return true;
+                    }
+                  })}
+                />
+                {addForm.formState.errors.minCart && (
+                  <span className="error-message">{addForm.formState.errors.minCart.message}</span>
+                )}
+              </div>
+
+              {/* Dynamic Discount Type Fields */}
+              <div className="form-group">
+                <label>DISCOUNT TYPE</label>
+                <select {...addForm.register("discountType")}>
+                  <option value="Percentage">Percentage</option>
+                  <option value="Flat">Flat Amount</option>
+                </select>
+              </div>
+
+              <div className="form-group">
+                <label>{addDiscountType === 'Percentage' ? 'PERCENTAGE (%)' : 'FLAT AMOUNT (₹)'}</label>
+                <input
+                  type="text"
+                  maxLength={5}
+                  placeholder={addDiscountType === 'Percentage' ? 'e.g. 20' : 'e.g. 100'}
+                  {...addForm.register("discountValue", {
+                    required: "Discount value is required",
+                    maxLength: {
+                      value: 5,
+                      message: "Cannot exceed 5 digits"
+                    },
+                    pattern: {
+                      value: /^[0-9]+$/,
+                      message: "Only numbers are allowed"
+                    },
+                    validate: (value) => {
+                      const num = Number(value);
+                      if (num < 10) return "Value must be at least 10";
+                      if (addDiscountType === 'Percentage' && num > 90) {
+                        return "Percentage cannot exceed 90";
+                      }
+                      if (addDiscountType === 'Flat') {
+                        if (num > 10000) return "Flat discount cannot exceed 10000";
+                        const minCartVal = Number(addMinCart);
+                        if (minCartVal && num >= minCartVal) {
+                          return "Flat discount must be less than minimum cart value";
+                        }
+                      }
+                      return true;
+                    }
+                  })}
+                />
+                {addForm.formState.errors.discountValue && (
+                  <span className="error-message">{addForm.formState.errors.discountValue.message}</span>
+                )}
+              </div>
+
+              {/* Max discount amount only appears if discount type is Percentage */}
+              {addDiscountType === 'Percentage' && (
                 <div className="form-group">
-                  <label>Maximum discount Amount</label>
-                 <input 
-  type="text" 
-  maxLength={5}
-  placeholder="0.00" 
-  {...register("maxDiscount", {
-    required: "Maximum discount amount is required",
-    pattern: {
-      value: /^[0-9]+$/,
-      message: "Only numbers are allowed"
-    }
-  })}
-/>
-{errors.maxDiscount && (
-              <span className="error-message">{errors.maxDiscount.message}</span>
-            )}
+                  <label>MAXIMUM DISCOUNT AMOUNT</label>
+                  <input
+                    type="text"
+                    maxLength={5}
+                    placeholder="e.g. 500"
+                    {...addForm.register("maxDiscount", {
+                      required: "Maximum discount amount is required",
+                      maxLength: {
+                        value: 5,
+                        message: "Cannot exceed 5 digits"
+                      },
+                      pattern: {
+                        value: /^[0-9]+$/,
+                        message: "Only numbers are allowed"
+                      },
+                      validate: (value) => {
+                        const num = Number(value);
+                        if (num < 10) return "Value must be at least 10";
+                        if (num > 10000) return "Max discount cannot exceed 10000";
+                        const minCartVal = Number(addMinCart);
+                        if (minCartVal && num > minCartVal) {
+                          return "Max discount cannot exceed min cart value";
+                        }
+                        return true;
+                      }
+                    })}
+                  />
+                  {addForm.formState.errors.maxDiscount && (
+                    <span className="error-message">{addForm.formState.errors.maxDiscount.message}</span>
+                  )}
                 </div>
               )}
             </div>
 
-            <div className="modal-footer">
-              <button className="btn-cancel" onClick={handleCancel}>CANCEL</button>
-              <button className="btn-black" type="submit">SAVE CHANGES</button>
+            <div className="button-container" style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="btn-cancel"
+                onClick={handleCancelAdd}
+              >
+                CLEAR
+              </button>
+              <button className="btn-black" type="submit">
+                ADD COUPON
+              </button>
             </div>
-          </div>
           </form>
         </div>
-      )}
 
+        {/* Active Directory Table Card */}
+        <div className="card table-card">
+          <div className="table-header-row">
+            <span className="table-section-title">ACTIVE DIRECTORY</span>
+            <span className="table-count">Showing {coupons?.length || 0} coupons</span>
+          </div>
 
-{/* Remove Confirmation Modal */}
-{deleteCoupon!==null && (
-  <div
-    className="aep-modal-overlay"
-    onClick={handleDelete}
-  >
-    <div
-      className="aep-modal"
-      onClick={(e) => e.stopPropagation()}
-    >
-      <div className="aep-modal-header">
-        <h3 className="aep-modal-title">REMOVE COUPON</h3>
+          <table className="coupon-table">
+            <thead>
+              <tr>
+                <th>CODE</th>
+                <th>NAME</th>
+                <th>DISCOUNT</th>
+                <th>MIN CART</th>
+                <th>EXPIRY DATE</th>
+                <th>TYPE</th>
+                <th>STATUS</th>
+                <th className="text-right">ACTIONS</th>
+              </tr>
+            </thead>
+            <tbody>
+              {coupons && coupons.length > 0 ? (
+                coupons.map((coupon) => (
+                  <tr key={coupon._id} className={coupon.status !== 'Active' ? 'row-inactive' : ''}>
+                    <td className="font-bold">{coupon.code}</td>
+                    <td>{coupon.name}</td>
+                    <td>
+                      {coupon.discountType === 'Percentage'
+                        ? `${coupon.discountValue}% (Max ₹${coupon.maxDiscount || 'N/A'})`
+                        : `₹${coupon.discountValue}`}
+                    </td>
+                    <td>₹{coupon.minCart}</td>
+                    <td>
+                      {coupon.expiryDate
+                        ? new Date(coupon.expiryDate).toLocaleDateString()
+                        : 'N/A'}
+                    </td>
+                    <td>{coupon.discountType}</td>
+                    <td>
+                      <label className="toggle-switch">
+                        <input
+                          type="checkbox"
+                          checked={coupon.status === "Active"}
+                          onChange={() => handleToggleStatus(coupon._id)}
+                        />
+                        <span className="slider"></span>
+                      </label>
+                    </td>
+                    <td className="text-right action-icons">
+                      <button onClick={() => handleEditClick(coupon)} className="icon-btn" title="Edit">
+                        <span className="material-symbols-outlined">edit</span>
+                      </button>
+                      <button onClick={() => setDeleteCoupon(coupon)} className="icon-btn" title="Delete">
+                        <span className="material-symbols-outlined">delete</span>
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="8" style={{ textAlign: "center", padding: "20px" }}>
+                    No coupons found
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
 
-        <button
-          type="button"
-          className="aep-icon-btn"
-          onClick={handleCancelDelete}
-        >
-          ✕
-        </button>
+        {/* Footer text */}
+        <div className="page-footer">
+          © 2024 Urban Sole Admin Panel. Internal Use Only.
+        </div>
+
+        {/* Edit Coupon Modal */}
+        {isEditModalOpen && (
+          <div className="modal-overlay">
+            <div className="modal-content">
+              <form onSubmit={editForm.handleSubmit(onEditSubmit, onEditError)} className="card generate-card" style={{ margin: 0, padding: 0, border: 'none', boxShadow: 'none' }}>
+                <div className="modal-header">
+                  <div>
+                    <h2>EDIT COUPON</h2>
+                    <p>Update coupon details and discount settings</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="close-modal-btn"
+                    onClick={handleCancelEdit}
+                  >
+                    <span className="material-symbols-outlined">close</span>
+                  </button>
+                </div>
+
+                <div className="modal-form-grid">
+                  <div className="form-group">
+                    <label>COUPON NAME</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Winter Sale"
+                      {...editForm.register("name", {
+                        required: "Name is required",
+                        pattern: {
+                          value: /^[a-zA-Z0-9\s]+$/,
+                          message: "Only letters, numbers, and spaces are allowed"
+                        },
+                        validate: {
+                          minLengthWithoutSpaces: (value) =>
+                            value.replace(/\s/g, '').length >= 4 || "Name must be at least 4 characters",
+                          minLetters: (value) =>
+                            (value.match(/[a-zA-Z]/g) || []).length >= 2 || "Must contain at least 2 letters"
+                        }
+                      })}
+                    />
+                    {editForm.formState.errors.name && (
+                      <span className="error-message">{editForm.formState.errors.name.message}</span>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label>COUPON CODE</label>
+                    <input
+                      type="text"
+                      maxLength={30}
+                      placeholder="E.G. SNOW2024"
+                      {...editForm.register("code", {
+                        required: "Code is required",
+                        minLength: {
+                          value: 8,
+                          message: "Code must be at least 8 characters"
+                        },
+                        pattern: {
+                          value: /^(?=(?:.*[A-Za-z]){4})\S+$/,
+                          message: "Code must contain at least 4 letters and no spaces"
+                        }
+                      })}
+                    />
+                    {editForm.formState.errors.code && (
+                      <span className="error-message">{editForm.formState.errors.code.message}</span>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label>EXPIRY DATE</label>
+                    <input
+                      type="date"
+                      min={new Date().toISOString().split("T")[0]}
+                      onKeyDown={(e) => e.preventDefault()}
+                      {...editForm.register("expiryDate", {
+                        required: "Expiry date is required",
+                        validate: {
+                          notPast: (value) => {
+                            const today = new Date().toISOString().split("T")[0];
+                            return value >= today || "Past dates are not allowed";
+                          }
+                        }
+                      })}
+                    />
+                    {editForm.formState.errors.expiryDate && (
+                      <span className="error-message">{editForm.formState.errors.expiryDate.message}</span>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label>USAGE COUNT</label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      placeholder="e.g. 100"
+                      {...editForm.register("usageCount", {
+                        required: "Usage count is required",
+                        pattern: {
+                          value: /^[0-9]+$/,
+                          message: "Only numbers are allowed"
+                        },
+                        validate: (val) => {
+                          const num = Number(val);
+                          if (num < 10) return "Usage count must be at least 10";
+                          if (num > 10000) return "Usage count must be below 10000";
+                          return true;
+                        }
+                      })}
+                    />
+                    {editForm.formState.errors.usageCount && (
+                      <span className="error-message">{editForm.formState.errors.usageCount.message}</span>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label>MINIMUM CART VALUE</label>
+                    <input
+                      type="text"
+                      placeholder="0.00"
+                      maxLength={8}
+                      {...editForm.register("minCart", {
+                        required: "Min cart value is required",
+                        pattern: {
+                          value: /^[0-9]+$/,
+                          message: "Only numbers are allowed"
+                        },
+                        validate: (val) => {
+                          const num = Number(val);
+                          if (num < 10) return "Min cart value must be at least 10";
+                          return true;
+                        }
+                      })}
+                    />
+                    {editForm.formState.errors.minCart && (
+                      <span className="error-message">{editForm.formState.errors.minCart.message}</span>
+                    )}
+                  </div>
+
+                  {/* Modal Dynamic Discount Type */}
+                  <div className="form-group">
+                    <label>DISCOUNT TYPE</label>
+                    <select {...editForm.register("discountType")}>
+                      <option value="Percentage">Percentage</option>
+                      <option value="Flat">Flat Amount</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group">
+                    <label>{editDiscountType === 'Percentage' ? 'PERCENTAGE (%)' : 'FLAT AMOUNT (₹)'}</label>
+                    <input
+                      type="text"
+                      maxLength={5}
+                      placeholder={editDiscountType === 'Percentage' ? 'e.g. 20' : 'e.g. 100'}
+                      {...editForm.register("discountValue", {
+                        required: "Discount value is required",
+                        maxLength: {
+                          value: 5,
+                          message: "Cannot exceed 5 digits"
+                        },
+                        pattern: {
+                          value: /^[0-9]+$/,
+                          message: "Only numbers are allowed"
+                        },
+                        validate: (value) => {
+                          const num = Number(value);
+                          if (num < 10) return "Value must be at least 10";
+                          if (editDiscountType === 'Percentage' && num > 90) {
+                            return "Percentage cannot exceed 90";
+                          }
+                          if (editDiscountType === 'Flat') {
+                            if (num > 10000) return "Flat discount cannot exceed 10000";
+                            const minCartVal = Number(editMinCart);
+                            if (minCartVal && num >= minCartVal) {
+                              return "Flat discount must be less than minimum cart value";
+                            }
+                          }
+                          return true;
+                        }
+                      })}
+                    />
+                    {editForm.formState.errors.discountValue && (
+                      <span className="error-message">{editForm.formState.errors.discountValue.message}</span>
+                    )}
+                  </div>
+
+                  {editDiscountType === 'Percentage' && (
+                    <div className="form-group">
+                      <label>MAXIMUM DISCOUNT AMOUNT</label>
+                      <input
+                        type="text"
+                        maxLength={5}
+                        placeholder="e.g. 500"
+                        {...editForm.register("maxDiscount", {
+                          required: "Maximum discount amount is required",
+                          maxLength: {
+                            value: 5,
+                            message: "Cannot exceed 5 digits"
+                          },
+                          pattern: {
+                            value: /^[0-9]+$/,
+                            message: "Only numbers are allowed"
+                          },
+                          validate: (value) => {
+                            const num = Number(value);
+                            if (num < 10) return "Value must be at least 10";
+                            if (num > 10000) return "Max discount cannot exceed 10000";
+                            const minCartVal = Number(editMinCart);
+                            if (minCartVal && num > minCartVal) {
+                              return "Max discount cannot exceed min cart value";
+                            }
+                            return true;
+                          }
+                        })}
+                      />
+                      {editForm.formState.errors.maxDiscount && (
+                        <span className="error-message">{editForm.formState.errors.maxDiscount.message}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn-cancel"
+                    onClick={handleCancelEdit}
+                  >
+                    CANCEL
+                  </button>
+                  <button className="btn-black" type="submit">
+                    SAVE CHANGES
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Remove Confirmation Modal */}
+        {deleteCoupon !== null && (
+          <div
+            className="aep-modal-overlay"
+            onClick={handleCancelDelete}
+          >
+            <div
+              className="aep-modal"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="aep-modal-header">
+                <h3 className="aep-modal-title">REMOVE COUPON</h3>
+                <button
+                  type="button"
+                  className="aep-icon-btn"
+                  onClick={handleCancelDelete}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="aep-modal-body">
+                <p>
+                  Are you sure you want to remove{" "}
+                  <strong>{deleteCoupon?.name} ({deleteCoupon?.code})</strong>?
+                </p>
+              </div>
+
+              <div className="aep-modal-footer">
+                <button
+                  type="button"
+                  className="aep-btn-secondary"
+                  onClick={handleCancelDelete}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="button"
+                  className="aep-save-btn"
+                  onClick={handleDelete}
+                >
+                  Remove
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-
-      <div className="aep-modal-body">
-        <p>
-          Are you sure you want to remove{" "}
-          <strong>
-            {deleteCoupon?.name}
-          </strong>{" "}
-        </p>
-      </div>
-
-      <div className="aep-modal-footer">
-        <button
-          type="button"
-          className="aep-btn-secondary"
-          onClick={handleDelete}
-        >
-          Cancel
-        </button>
-
-        <button
-          type="button"
-          className="aep-save-btn"
-          onClick={handleDelete}
-        >
-          Remove
-        </button>
-      </div>
-    </div>
-  </div>
-)} 
-    </div>
-
     </>
   );
 }

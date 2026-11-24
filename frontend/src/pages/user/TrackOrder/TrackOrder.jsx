@@ -28,6 +28,7 @@ const TrackOrder = () => {
   const [reviewComment,setReviewComment]=useState("")
   const [reviewRating,setReviewRating]=useState("")
   const [reviewHoverRating,setReviewHoverRating]=useState(0)
+  const [reviewError, setReviewError] = useState("")
 
   const location=useLocation()
   const orderId=location.state?.orderId
@@ -234,70 +235,82 @@ const TrackOrder = () => {
 
 
 
-    const reviewSubmit=async(e)=>{
-      e.preventDefault()
-      console.log("RRLLLLFF",reviewItem)
-      try{
-          setLoading(true);
+    const reviewSubmit = async (e) => {
+      e.preventDefault();
+      setReviewError("");
 
-        if (!reviewRating || reviewRating === "") {
-    toast.error("Please select a rating");
-    return;
-  }
-
-  const cleanTitle = reviewTitle.trim();
-  const letterCountInTitle = (cleanTitle.match(/[a-zA-Z]/g) || []).length;
-
-  if (!cleanTitle || cleanTitle.length === 0) {
-    toast.error("Review title is Required");
-    return;
-  }
-  if (letterCountInTitle < 4) {
-    toast.error("Review title must contain at least 4 letters");
-    return;
-  }
-  if (!/^[a-zA-Z ]+$/.test(cleanTitle)) {
-    toast.error("Review title must contain only letters");
-    return;
-  }
-
-  // 3. Review Comment Validations
-  const cleanComment = reviewComment.trim();
-  const nonSpaceCharsInComment = cleanComment.replace(/\s/g, "").length;
-
-  if (!cleanComment || cleanComment.length === 0) {
-    toast.error("Review comment cannot be empty or full spaces");
-    return;
-  }
-  if (nonSpaceCharsInComment < 10) {
-    toast.error("Review comment must contain at least 10 characters");
-    return;
-  }
-
-
-    const response = await axiosInstance.post("/user/review/addReview", {
-      product: reviewItem.product,
-      rating: Number(reviewRating),
-      title: cleanTitle,
-      comment: cleanComment
-    });
-
-    if (response.data?.success) {
-      toast.success("Review submitted successfully!")
-      setReviewItem("")
-      setReviewComment("")
-      setReviewTitle("")
-      setReviewHoverRating(0)
-      setReviewModalOpen(false)
-    }
-
-      }catch(error){
-        console.log(error)
-        toast.error(error?.response?.data?.message)
-      }finally{
-        setLoading(false)
+      if (!reviewRating || reviewRating === "" || Number(reviewRating) < 1) {
+        setReviewError("Please select a rating");
+        toast.error("Please select a rating");
+        return;
       }
-    }
+
+      const cleanTitle = reviewTitle.trim();
+      const letterCountInTitle = (cleanTitle.match(/[a-zA-Z]/g) || []).length;
+
+      if (!cleanTitle || cleanTitle.length === 0) {
+        setReviewError("Review title is Required");
+        toast.error("Review title is Required");
+        return;
+      }
+      if (letterCountInTitle < 4) {
+        setReviewError("Review title must contain at least 4 letters");
+        toast.error("Review title must contain at least 4 letters");
+        return;
+      }
+      if (!/^[a-zA-Z ]+$/.test(cleanTitle)) {
+        setReviewError("Review title must contain only letters");
+        toast.error("Review title must contain only letters");
+        return;
+      }
+
+      // 3. Review Comment Validations
+      const cleanComment = reviewComment.trim();
+      const nonSpaceCharsInComment = cleanComment.replace(/\s/g, "").length;
+
+      if (!cleanComment || cleanComment.length === 0) {
+        setReviewError("Review comment cannot be empty or full spaces");
+        toast.error("Review comment cannot be empty or full spaces");
+        return;
+      }
+      if (nonSpaceCharsInComment < 10) {
+        setReviewError("Review comment must contain at least 10 characters");
+        toast.error("Review comment must contain at least 10 characters");
+        return;
+      }
+
+      try {
+        setLoading(true);
+
+        const response = await axiosInstance.post("/user/review/addReview", {
+          product: reviewItem.product?._id || reviewItem.product,
+          rating: Number(reviewRating),
+          title: cleanTitle,
+          comment: cleanComment
+        });
+
+        if (response.data?.success) {
+          toast.success("Review submitted successfully!");
+          setReviewItem("");
+          setReviewComment("");
+          setReviewTitle("");
+          setReviewHoverRating(0);
+          setReviewRating(0);
+          setReviewError("");
+          setReviewModalOpen(false);
+        }
+      } catch (error) {
+        console.log(error);
+        const rawMsg = error?.response?.data?.message || "Failed to submit review";
+        const displayMsg = rawMsg.toLowerCase().includes("already")
+          ? "You have already uploaded a review for this product."
+          : rawMsg;
+        setReviewError(displayMsg);
+        toast.error(displayMsg);
+      } finally {
+        setLoading(false);
+      }
+    };
 
 
 
@@ -367,82 +380,106 @@ const TrackOrder = () => {
                       <p className="to-prod-specs"></p>
                       
                       <div className="to-prod-action-buttons">
+                        {item.status === "RETURN_APPROVED" ? (
+                          <div className="od-return-bar-badge" style={{ display: "inline-flex", alignItems: "center", gap: "10px" }}>
+                            <svg 
+                              className="od-notification-bell return_approved" 
+                              viewBox="0 0 24 24" 
+                              fill="none" 
+                              stroke="currentColor" 
+                              strokeWidth="2" 
+                              width="14" 
+                              height="14"
+                            >
+                              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                              <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                            </svg>
+                            <span className="od-bar-status-text return_approved" style={{ color: "#137333", fontWeight: "700" }}>
+                              RETURN APPROVED
+                            </span>
+                            <button 
+                              className="to-btn-black" 
+                              style={{ padding: "6px 12px", fontSize: "11px" }}
+                              onClick={() => { setReviewModalOpen(true); setReviewItem(item); setReviewError(""); }}
+                            >
+                              Write Review
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            {["DELIVERED", "RETURN_REQUESTED", "RETURN_REJECTED", "RETURNED"].includes(item.status) && (
+                              <button 
+                                className="to-btn-black" 
+                                onClick={() => { setReviewModalOpen(true); setReviewItem(item); setReviewError(""); }}
+                              >
+                                Write Review
+                              </button>
+                            )}
 
- 
-    {["DELIVERED", "RETURN_REQUESTED", "RETURN_REJECTED", "RETURN_APPROVED","RETURNED"].includes(order?.orderStatus)&&(
-       <button className="to-btn-black" onClick={()=>{setReviewModalOpen(true);setReviewItem(item)}}>Write Review</button>
-      )}
-
-                       {["CANCELLED", "RETURNED"].includes(order.orderStatus) ? null :
-
-  item.status === "CANCELLED" ? (
-    <span className="to-status-text-badge cancelled">
-      Item Cancelled
-    </span>
-
-  ) : item.status === "RETURN_REQUESTED" ? (
-    <span className="to-status-text-badge return-requested">
-      Return Requested
-    </span>
-
-  ) : item.status === "PENDING" ? (
-    <span className="to-status-text-badge return-requested">
-      PENDING
-    </span>
-
-  ) : item.status === "RETURN_REJECTED" ? (
-    <div className="od-return-bar-badge" style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
-      <svg 
-        className="od-notification-bell return_rejected" 
-        viewBox="0 0 24 24" 
-        fill="none" 
-        stroke="currentColor" 
-        strokeWidth="2" 
-        width="14" 
-        height="14"
-      >
-        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-      </svg>
-      <span className="od-bar-status-text return_rejected">
-        Return Rejected
-      </span>
-      <button 
-        className="od-bar-view-reason-btn"
-        onClick={() => {setIsReasonModalOpen(true);setReasonItem(item)}}
-      >
-        View Reason
-      </button>
-    </div>
-
-  ) : item.status === "RETURNED" ? (
-    <span className="to-status-text-badge returned">
-      Item Returned
-    </span>
-
-  ) : item.status === "DELIVERED" ? (
-    <button
-      className="to-btn-outline"
-      onClick={() => {
-        setIsReturnModalOpen(true);
-        setReturnId(item.product);
-      }}
-    >
-      RETURN PRODUCT
-    </button>
-
-  ) :item.status!="PENDING" && (
-    <button
-      className="to-btn-outline"
-      onClick={() => {
-        setIsCancelModalOpen(true);
-        setCancellationId(item.product);
-      }}
-    >
-      CANCEL PRODUCT
-    </button>
-  )
-}
+                            {item.status === "CANCELLED" ? (
+                              <span className="to-status-text-badge cancelled">
+                                Item Cancelled
+                              </span>
+                            ) : item.status === "RETURN_REQUESTED" ? (
+                              <span className="to-status-text-badge return-requested">
+                                Return Requested
+                              </span>
+                            ) : item.status === "RETURN_REJECTED" ? (
+                              <div className="od-return-bar-badge" style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
+                                <svg 
+                                  className="od-notification-bell return_rejected" 
+                                  viewBox="0 0 24 24" 
+                                  fill="none" 
+                                  stroke="currentColor" 
+                                  strokeWidth="2" 
+                                  width="14" 
+                                  height="14"
+                                >
+                                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                                </svg>
+                                <span className="od-bar-status-text return_rejected">
+                                  Return Rejected
+                                </span>
+                                <button 
+                                  className="od-bar-view-reason-btn"
+                                  onClick={() => { setIsReasonModalOpen(true); setReasonItem(item); }}
+                                >
+                                  View Reason
+                                </button>
+                              </div>
+                            ) : item.status === "RETURNED" ? (
+                              <span className="to-status-text-badge returned">
+                                Item Returned
+                              </span>
+                            ) : item.status === "DELIVERED" ? (
+                              <button
+                                className="to-btn-outline"
+                                onClick={() => {
+                                  setIsReturnModalOpen(true);
+                                  setReturnId(item.product);
+                                }}
+                              >
+                                RETURN PRODUCT
+                              </button>
+                            ) : item.status === "PENDING" ? (
+                              <span className="to-status-text-badge return-requested">
+                                PENDING
+                              </span>
+                            ) : !["CANCELLED", "RETURNED", "RETURN_APPROVED", "RETURN_REQUESTED", "PENDING"].includes(item.status) &&
+                                !["CANCELLED", "RETURNED", "RETURN_APPROVED", "DELIVERED"].includes(order.orderStatus) && (
+                              <button
+                                className="to-btn-outline"
+                                onClick={() => {
+                                  setIsCancelModalOpen(true);
+                                  setCancellationId(item.product);
+                                }}
+                              >
+                                CANCEL PRODUCT
+                              </button>
+                            )}
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -661,6 +698,12 @@ const TrackOrder = () => {
   color: "#ff2609",
   cursor: "not-allowed"
 }}>RETURN REJECTED</button>
+              ) :  order.orderStatus === "RETURN_APPROVED" ? (
+                <button className="to-btn-bottom" disabled style={{
+  backgroundColor: "#f3f4f6",
+  color: "#16a34a",
+  cursor: "not-allowed"
+}}>RETURN APPROVED</button>
               ) :  order.orderStatus === "DELIVERED" ? (
                 <button className="to-btn-bottom" onClick={() => { setIsReturnModalOpen(true); setReturnId(orderId); }}>RETURN ENTIRE ORDER</button>
 
@@ -875,18 +918,41 @@ const TrackOrder = () => {
       <div className="urm-modal-card">
         
         {/* Close Button */}
-        <button className="urm-close-btn" onClick={()=>{setReviewModalOpen(false);setReviewComment("");setReviewTitle("");setReviewHoverRating("");setReviewRating(0)}}>&times;</button>
+        <button className="urm-close-btn" onClick={()=>{setReviewModalOpen(false);setReviewComment("");setReviewTitle("");setReviewHoverRating(0);setReviewRating("");setReviewError("")}}>&times;</button>
 
         <div className="urm-header">
           <h2 className="urm-title">WRITE A REVIEW</h2>
           <p className="urm-subtitle">Share your experience with other customers.</p>
         </div>
 
+        {/* Inline Error Message in Review Modal */}
+        {reviewError && (
+          <div
+            className="urm-error-banner"
+            style={{
+              backgroundColor: "#fef2f2",
+              color: "#b91c1c",
+              border: "1px solid #fca5a5",
+              padding: "10px 14px",
+              borderRadius: "4px",
+              fontSize: "13px",
+              fontWeight: "600",
+              margin: "10px 0 16px 0",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px"
+            }}
+          >
+            <span style={{ fontSize: "16px" }}>⚠️</span>
+            <span>{reviewError}</span>
+          </div>
+        )}
+
         {/* Product Preview Box */}
         {reviewItem && (
           <div className="urm-product-box">
             <div className="urm-img-box">
-              <img src={reviewItem.image} />
+              <img src={reviewItem.image} alt={reviewItem.productName || "Product"} />
             </div>
             <div className="urm-prod-info">
               <h3 className="urm-prod-name">{reviewItem.productName}</h3>
@@ -903,9 +969,12 @@ const TrackOrder = () => {
                 <span
                   key={star}
                   className={`urm-star ${star <= (reviewHoverRating || reviewRating) ? 'filled' : ''}`}
-                  onClick={() => setReviewRating(star)}
-onMouseEnter={() => setReviewHoverRating(star)}
-onMouseLeave={() => setReviewHoverRating(0)}
+                  onClick={() => {
+                    setReviewRating(star);
+                    if (reviewError) setReviewError("");
+                  }}
+                  onMouseEnter={() => setReviewHoverRating(star)}
+                  onMouseLeave={() => setReviewHoverRating(0)}
                 >
                   ★
                 </span>
@@ -921,7 +990,10 @@ onMouseLeave={() => setReviewHoverRating(0)}
               className="urm-input"
               placeholder="Sum up your experience"
               value={reviewTitle}
-              onChange={(e) => setReviewTitle(e.target.value)}
+              onChange={(e) => {
+                setReviewTitle(e.target.value);
+                if (reviewError) setReviewError("");
+              }}
               maxLength={60}
               required
             />
@@ -934,7 +1006,10 @@ onMouseLeave={() => setReviewHoverRating(0)}
               className="urm-textarea"
               placeholder="What did you like or dislike? How did it fit?"
               value={reviewComment}
-              onChange={(e) => setReviewComment(e.target.value)}
+              onChange={(e) => {
+                setReviewComment(e.target.value);
+                if (reviewError) setReviewError("");
+              }}
               rows={4}
               required
             ></textarea>

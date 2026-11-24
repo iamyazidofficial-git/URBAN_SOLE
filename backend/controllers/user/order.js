@@ -56,8 +56,8 @@ const trackOrder = async (req, res) => {
 
 const cancelOrder = async (req, res) => {
   try {
-    const response=await cancelOrderService(req.params)
- return res.status(200).json({
+    const response = await cancelOrderService(req.params, req.body);
+    return res.status(200).json({
       success: true,
       message: "Order Cancelled Successfully",
     });

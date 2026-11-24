@@ -733,3 +733,65 @@
   background-color: #777777;
   cursor: not-allowed;
 }
+
+/* ================= RETURN BAR WITH NOTIFICATION BELL ================= */
+
+.od-return-bar-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: #f5f3f3;
+  border: 1px solid #cfc4c5;
+  padding: 4px 8px 4px 10px;
+  border-radius: 4px;
+  gap: 10px;
+}
+
+.od-notification-bell {
+  flex-shrink: 0;
+}
+
+.od-notification-bell.return_requested {
+  stroke: #b45309;
+}
+
+.od-notification-bell.return_approved,
+.od-notification-bell.returned {
+  stroke: #137333;
+}
+
+.od-notification-bell.return_rejected {
+  stroke: #b91c1c;
+}
+
+.od-bar-status-text {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.od-bar-status-text.return_approved {
+  color: #137333;
+}
+
+.od-bar-status-text.return_rejected {
+  color: #b91c1c;
+}
+
+.od-bar-view-reason-btn {
+  background-color: transparent;
+  color: #b91c1c;
+  border: 1px solid #b91c1c;
+  padding: 4px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 2px;
+}
+
+.od-bar-view-reason-btn:hover {
+  background-color: #b91c1c;
+  color: #ffffff;
+}

@@ -64,7 +64,7 @@ const existingReview = reviewProduct.reviews.find(
 );
 
 if (existingReview) {
-    throw new Error("Review is already added");
+    throw new Error("You have already uploaded a review for this product");
 }
 
     const newReview = {
