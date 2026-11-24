@@ -476,8 +476,8 @@ export default function Checkout() {
   };
 
   const placeOrder = async () => {
-    if (!selectedAddress || !selectedAddress._id) {
-      toast.error("Please select a delivery address");
+    if (!allAddresses || allAddresses.length === 0 || !selectedAddress || !selectedAddress._id) {
+      toast.error("first address is requrired");
       setOrderConfirmModal(false);
       return;
     }
@@ -682,10 +682,11 @@ export default function Checkout() {
                   <div className="order-item-info">
                     <div>
                       <h3 className="item-title">
-                        {item.brand} {item.name}
+                        {item.productName || item.name || (item.brand ? `${item.brand} ${item.name || ''}` : "Product")}
                       </h3>
-                      <p className="item-desc">Color: {item.colour}</p>
-                      <p className="item-desc">Size: {item.size}</p>
+                      {item.brand && <p className="item-desc" style={{ fontWeight: 600, color: "#4b5563" }}>Brand: {item.brand}</p>}
+                      <p className="item-desc">Color: {item.colour || item.color || "Standard"}</p>
+                      <p className="item-desc">Size: {item.size || "N/A"}</p>
                     </div>
                     <div className="order-item-bottom">
                       <span className="item-qty">Qty: {item.quantity}</span>
@@ -817,7 +818,18 @@ export default function Checkout() {
                     </span>
                     {selectedCoupon ? "Change Coupon" : "Apply Coupon"}
                   </button>
-                  <button className="btn-solid-custom" onClick={() => setOrderConfirmModal(true)}>Place Order</button>
+                  <button 
+                    className="btn-solid-custom" 
+                    onClick={() => {
+                      if (!allAddresses || allAddresses.length === 0 || !selectedAddress || !selectedAddress._id) {
+                        toast.error("first address is requrired");
+                        return;
+                      }
+                      setOrderConfirmModal(true);
+                    }}
+                  >
+                    Place Order
+                  </button>
                 </div>
               </div>
 
@@ -853,24 +865,11 @@ export default function Checkout() {
               <button
                 className="coupon-close-btn"
                 onClick={() => setCouponModal(false)}
-              >
+              > 
                 ✕
               </button>
             </div>
 
-            <div className="coupon-input-box">
-              <span className="coupon-input-label">HAVE A CODE?</span>
-              <div className="coupon-input-wrapper">
-                <input
-                  type="text"
-                  placeholder="ENTER CODE"
-                  value={couponCodeInput}
-                  onChange={(e) => setCouponCodeInput(e.target.value)}
-                />
-                {/* മാന്വൽ അപ്ലൈ ബട്ടണിൽ onClick ഫങ്ക്ഷൻ കണക്ട് ചെയ്തു */}
-                <button className="coupon-apply-btn" onClick={handleApplyCouponCode}>APPLY</button>
-              </div>
-            </div>
 
             <div className="coupon-list">
               {coupons?.map((coupon) => {
@@ -881,17 +880,7 @@ export default function Checkout() {
                     className={`coupon-card ${isSelected ? "applied" : ""}`}
                     key={coupon._id || coupon.code}
                   >
-                    {isSelected && (
-                      <div className="coupon-card-top-row">
-                        <span className="coupon-applied-tag">✓ APPLIED</span>
-                        <button
-                          className="coupon-action-text"
-                          onClick={handleRemoveCoupon}
-                        >
-                          REMOVE
-                        </button>
-                      </div>
-                    )}
+                    
 
                     {coupon.badge && !isSelected && (
                       <span className="coupon-badge-timer">

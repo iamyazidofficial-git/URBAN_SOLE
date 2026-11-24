@@ -1,4 +1,5 @@
 const Coupon = require("../models/coupon");
+
 const addCouponService = async (couponData) => {
   const {
     name,
@@ -11,17 +12,10 @@ const addCouponService = async (couponData) => {
     discountValue,
   } = couponData;
 
-  console.log("COUPON DATA", couponData);
+  const cleanName = (name || "").trim();
+  const cleanCode = (code || "").trim().toUpperCase();
 
-  const cleanName = name.trim();
-  const cleanCode = code.trim();
-  const existingName = await Coupon.findOne({ name: cleanName });
-  const existingCode = await Coupon.findOne({ code: cleanCode });
-
-  console.log("Max", maxDiscount);
-  console.log("Min", minCart);
-
-  if (cleanName?.length < 4) {
+  if (!cleanName || cleanName.length < 4) {
     throw new Error("Name must contain at least 4 characters");
   }
 
@@ -33,135 +27,149 @@ const addCouponService = async (couponData) => {
     throw new Error("Name must contain at least 2 letters");
   }
 
+  const existingName = await Coupon.findOne({
+    name: { $regex: new RegExp(`^${cleanName}$`, "i") },
+  });
   if (existingName) {
-    throw new Error("Name is allready exists");
+    throw new Error("Coupon name already exists");
   }
-  if (!cleanCode || cleanCode.trim() === "") {
-    throw new Error("CouponCode is required");
+
+  if (!cleanCode) {
+    throw new Error("Coupon code is required");
   }
 
   if (/\s/.test(cleanCode)) {
-    throw new Error("CouponCode cannot contain spaces");
+    throw new Error("Coupon code cannot contain spaces");
   }
 
   if (cleanCode.length < 8) {
-    throw new Error("CouponCode must contain at least 8 characters");
+    throw new Error("Coupon code must contain at least 8 characters");
   }
 
   if ((cleanCode.match(/[a-zA-Z]/g) || []).length < 4) {
-    throw new Error("CouponCode must contain at least 4 letters");
+    throw new Error("Coupon code must contain at least 4 letters");
   }
+
+  const existingCode = await Coupon.findOne({ code: cleanCode });
   if (existingCode) {
-    throw new Error("Code is allready exists");
+    throw new Error("Coupon code already exists");
+  }
+
+  if (!expiryDate) {
+    throw new Error("Expiry date is required");
   }
 
   const inputDate = new Date(expiryDate);
-
   if (Number.isNaN(inputDate.getTime())) {
     throw new Error("Invalid expiry date");
   }
 
-  inputDate.setHours(0, 0, 0, 0);
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
 
-  const currentDate = new Date();
-  currentDate.setHours(0, 0, 0, 0);
+  const compareDate = new Date(expiryDate);
+  compareDate.setHours(0, 0, 0, 0);
 
-  console.log("Received expiryDate:", expiryDate);
-  console.log("Input date:", inputDate);
-  console.log("Current date:", currentDate);
-  console.log("Is past:", inputDate < currentDate);
-
-  if (inputDate < currentDate) {
-    throw new Error("Expiry Date cannot be in the past");
+  if (compareDate < todayStart) {
+    throw new Error("Expiry date cannot be in the past");
   }
 
-  if (inputDate < currentDate) {
-    throw new Error("Expiry Date cannot be in the past");
-  }
+  inputDate.setHours(23, 59, 59, 999);
 
-  if (!usageCount) {
+  if (usageCount === undefined || usageCount === null || usageCount === "") {
     throw new Error("Usage count is required");
   }
-  if (usageCount > 10000) {
-    throw new Error("Usage count must below 10000");
+  const numUsageCount = Number(usageCount);
+  if (isNaN(numUsageCount) || numUsageCount < 10) {
+    throw new Error("Usage count must be at least 10");
   }
-  if (usageCount < 10) {
-    throw new Error("Usage count must atleast 10");
-  }
-  if (!minCart) {
-    throw new Error("Min cart value is rquried");
-  }
-  if (minCart < 10) {
-    throw new Error("Min cart value must be atleast 10");
-  }
-  if (!discountType) {
-    throw new Error("discount type is required");
-  }
-  if (discountType == "percentage" && !maxDiscount) {
-    throw new Error("Max discount amount value is rquried");
-  }
-  if (maxDiscount < 10) {
-    throw new Error("Max discount amount atleast 10");
-  }
-  if (maxDiscount > 10000) {
-    throw new Error("Max discount must below 10000");
-  }
-  if (Number(minCart) < Number(maxDiscount)) {
-    throw new Error("Max discount amount must below than mincart");
-  }
-  if (!discountValue) {
-    throw new Error("discount Value is required");
-  }
-  if (discountValue < 10) {
-    throw new Error("discount Value must atleast 10");
-  }
-  if (
-    discountType == "Percentage" &&
-    (discountValue < 10 || discountValue > 90)
-  ) {
-    throw new Error("discount Value must between 10 and 90");
-  }
-  if (discountType == "Flat" && discountValue > 10000) {
-    throw new Error("discount Value must below 10000");
+  if (numUsageCount > 10000) {
+    throw new Error("Usage count must be below 10000");
   }
 
-  console.log("CCC", {
-    name: cleanName,
-    code: cleanCode,
-    usageCount: usageCount,
-    usedCount: 0,
-    discountValue: discountValue,
-    expiryDate: inputDate,
-    minCart: minCart,
-    maxDiscount: maxDiscount,
-    discountType: discountType.trim(),
-    status: "Active",
-  });
+  if (minCart === undefined || minCart === null || minCart === "") {
+    throw new Error("Minimum cart value is required");
+  }
+  const numMinCart = Number(minCart);
+  if (isNaN(numMinCart) || numMinCart < 10) {
+    throw new Error("Minimum cart value must be at least 10");
+  }
+
+  if (!discountType) {
+    throw new Error("Discount type is required");
+  }
+
+  const isPercentage = (discountType || "").trim().toLowerCase() === "percentage";
+  const numDiscountValue = Number(discountValue);
+
+  if (
+    discountValue === undefined ||
+    discountValue === null ||
+    discountValue === "" ||
+    isNaN(numDiscountValue)
+  ) {
+    throw new Error("Discount value is required");
+  }
+  if (numDiscountValue < 10) {
+    throw new Error("Discount value must be at least 10");
+  }
+
+  let finalMaxDiscount = null;
+  if (isPercentage) {
+    if (numDiscountValue > 90) {
+      throw new Error("Discount percentage cannot exceed 90%");
+    }
+    if (maxDiscount === undefined || maxDiscount === null || maxDiscount === "") {
+      throw new Error("Maximum discount amount is required for percentage discount");
+    }
+    finalMaxDiscount = Number(maxDiscount);
+    if (isNaN(finalMaxDiscount) || finalMaxDiscount < 10) {
+      throw new Error("Maximum discount amount must be at least 10");
+    }
+    if (finalMaxDiscount > 10000) {
+      throw new Error("Maximum discount amount must be below 10000");
+    }
+    if (finalMaxDiscount > numMinCart) {
+      throw new Error("Maximum discount amount must be less than or equal to minimum cart value");
+    }
+  } else {
+    // Flat discount
+    if (numDiscountValue > 10000) {
+      throw new Error("Flat discount value must be below 10000");
+    }
+    if (numDiscountValue >= numMinCart) {
+      throw new Error("Flat discount value must be less than minimum cart value");
+    }
+  }
 
   const newCoupon = await Coupon.create({
     name: cleanName,
     code: cleanCode,
-    usageCount: Number(usageCount),
-    discountValue: Number(discountValue),
+    usageCount: numUsageCount,
+    usedCount: 0,
+    discountValue: numDiscountValue,
     expiryDate: inputDate,
-    minCart: Number(minCart),
-    maxDiscount: Number(maxDiscount),
-    discountType: discountType.trim(),
+    minCart: numMinCart,
+    maxDiscount: isPercentage ? finalMaxDiscount : null,
+    discountType: isPercentage ? "Percentage" : "Flat",
     status: "Active",
   });
-
-  console.log("Added successfully");
 
   return {
     success: true,
     message: "Coupon added successfully",
+    coupon: newCoupon,
   };
 };
 
-const editCouponService = async (params, couponData) => {
-  const couponId = params;
+const editCouponService = async (couponId, couponData) => {
   if (!couponId) {
-    throw new Error("CouponID is not passed");
+    throw new Error("Coupon ID is required");
+  }
+
+  const existingCoupon = await Coupon.findById(couponId);
+  if (!existingCoupon) {
+    throw new Error("Coupon not found");
   }
 
   const {
@@ -175,15 +183,10 @@ const editCouponService = async (params, couponData) => {
     discountValue,
   } = couponData;
 
-  const cleanName = name.trim();
-  const cleanCode = code.trim();
-  const existingName = await Coupon.findOne({ name: cleanName });
-  const existingCode = await Coupon.findOne({ code: cleanCode });
+  const cleanName = (name || "").trim();
+  const cleanCode = (code || "").trim().toUpperCase();
 
-  console.log("Max", maxDiscount);
-  console.log("Min", minCart);
-
-  if (cleanName?.length < 4) {
+  if (!cleanName || cleanName.length < 4) {
     throw new Error("Name must contain at least 4 characters");
   }
 
@@ -195,125 +198,150 @@ const editCouponService = async (params, couponData) => {
     throw new Error("Name must contain at least 2 letters");
   }
 
+  const existingName = await Coupon.findOne({
+    _id: { $ne: couponId },
+    name: { $regex: new RegExp(`^${cleanName}$`, "i") },
+  });
   if (existingName) {
-    throw new Error("Name is allready exists");
+    throw new Error("Coupon name already exists");
   }
-  if (!cleanCode || cleanCode.trim() === "") {
-    throw new Error("CouponCode is required");
+
+  if (!cleanCode) {
+    throw new Error("Coupon code is required");
   }
 
   if (/\s/.test(cleanCode)) {
-    throw new Error("CouponCode cannot contain spaces");
+    throw new Error("Coupon code cannot contain spaces");
   }
 
   if (cleanCode.length < 8) {
-    throw new Error("CouponCode must contain at least 8 characters");
+    throw new Error("Coupon code must contain at least 8 characters");
   }
 
   if ((cleanCode.match(/[a-zA-Z]/g) || []).length < 4) {
-    throw new Error("CouponCode must contain at least 4 letters");
+    throw new Error("Coupon code must contain at least 4 letters");
   }
+
+  const existingCode = await Coupon.findOne({
+    _id: { $ne: couponId },
+    code: cleanCode,
+  });
   if (existingCode) {
-    throw new Error("Code is allready exists");
+    throw new Error("Coupon code already exists");
+  }
+
+  if (!expiryDate) {
+    throw new Error("Expiry date is required");
   }
 
   const inputDate = new Date(expiryDate);
-
   if (Number.isNaN(inputDate.getTime())) {
     throw new Error("Invalid expiry date");
   }
 
-  inputDate.setHours(0, 0, 0, 0);
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
 
-  const currentDate = new Date();
-  currentDate.setHours(0, 0, 0, 0);
+  const compareDate = new Date(expiryDate);
+  compareDate.setHours(0, 0, 0, 0);
 
-  console.log("Received expiryDate:", expiryDate);
-  console.log("Input date:", inputDate);
-  console.log("Current date:", currentDate);
-  console.log("Is past:", inputDate < currentDate);
-
-  if (inputDate < currentDate) {
-    throw new Error("Expiry Date cannot be in the past");
+  if (compareDate < todayStart) {
+    throw new Error("Expiry date cannot be in the past");
   }
 
-  if (inputDate < currentDate) {
-    throw new Error("Expiry Date cannot be in the past");
-  }
+  inputDate.setHours(23, 59, 59, 999);
 
-  if (!usageCount) {
+  if (usageCount === undefined || usageCount === null || usageCount === "") {
     throw new Error("Usage count is required");
   }
-  if (usageCount > 10000) {
-    throw new Error("Usage count must below 10000");
+  const numUsageCount = Number(usageCount);
+  if (isNaN(numUsageCount) || numUsageCount < 10) {
+    throw new Error("Usage count must be at least 10");
   }
-  if (usageCount < 10) {
-    throw new Error("Usage count must atleast 10");
+  if (numUsageCount > 10000) {
+    throw new Error("Usage count must be below 10000");
   }
-  if (!minCart) {
-    throw new Error("Min cart value is rquried");
+
+  if (minCart === undefined || minCart === null || minCart === "") {
+    throw new Error("Minimum cart value is required");
   }
-  if (minCart < 10) {
-    throw new Error("Min cart value must be atleast 10");
+  const numMinCart = Number(minCart);
+  if (isNaN(numMinCart) || numMinCart < 10) {
+    throw new Error("Minimum cart value must be at least 10");
   }
+
   if (!discountType) {
-    throw new Error("discount type is required");
+    throw new Error("Discount type is required");
   }
-  if (discountType == "percentage" && !maxDiscount) {
-    throw new Error("Max discount amount value is rquried");
-  }
-  if (maxDiscount < 10) {
-    throw new Error("Max discount amount atleast 10");
-  }
-  if (maxDiscount > 10000) {
-    throw new Error("Max discount must below 10000");
-  }
-  if (Number(minCart) < Number(maxDiscount)) {
-    throw new Error("Max discount amount must below than mincart");
-  }
-  if (!discountValue) {
-    throw new Error("discount Value is required");
-  }
-  if (discountValue < 10) {
-    throw new Error("discount Value must atleast 10");
-  }
+
+  const isPercentage = (discountType || "").trim().toLowerCase() === "percentage";
+  const numDiscountValue = Number(discountValue);
+
   if (
-    discountType == "Percentage" &&
-    (discountValue < 10 || discountValue > 90)
+    discountValue === undefined ||
+    discountValue === null ||
+    discountValue === "" ||
+    isNaN(numDiscountValue)
   ) {
-    throw new Error("discount Value must between 10 and 90");
+    throw new Error("Discount value is required");
   }
-  if (discountType == "Flat" && discountValue > 10000) {
-    throw new Error("discount Value must below 10000");
+  if (numDiscountValue < 10) {
+    throw new Error("Discount value must be at least 10");
+  }
+
+  let finalMaxDiscount = null;
+  if (isPercentage) {
+    if (numDiscountValue > 90) {
+      throw new Error("Discount percentage cannot exceed 90%");
+    }
+    if (maxDiscount === undefined || maxDiscount === null || maxDiscount === "") {
+      throw new Error("Maximum discount amount is required for percentage discount");
+    }
+    finalMaxDiscount = Number(maxDiscount);
+    if (isNaN(finalMaxDiscount) || finalMaxDiscount < 10) {
+      throw new Error("Maximum discount amount must be at least 10");
+    }
+    if (finalMaxDiscount > 10000) {
+      throw new Error("Maximum discount amount must be below 10000");
+    }
+    if (finalMaxDiscount > numMinCart) {
+      throw new Error("Maximum discount amount must be less than or equal to minimum cart value");
+    }
+  } else {
+    // Flat discount
+    if (numDiscountValue > 10000) {
+      throw new Error("Flat discount value must be below 10000");
+    }
+    if (numDiscountValue >= numMinCart) {
+      throw new Error("Flat discount value must be less than minimum cart value");
+    }
   }
 
   await Coupon.findByIdAndUpdate(couponId, {
     name: cleanName,
     code: cleanCode,
-    usageCount: usageCount,
-    usedCount: 0,
-    discountValue: discountValue,
+    usageCount: numUsageCount,
+    discountValue: numDiscountValue,
     expiryDate: inputDate,
-    minCart: minCart,
-    maxDiscount: maxDiscount,
-    discountType: discountType.trim(),
-    status: "Active",
+    minCart: numMinCart,
+    maxDiscount: isPercentage ? finalMaxDiscount : null,
+    discountType: isPercentage ? "Percentage" : "Flat",
   });
 
   return {
     success: true,
-    message: "Coupon Edited successfully",
+    message: "Coupon updated successfully",
   };
 };
 
 const deleteCouponService = async (couponId) => {
   if (!couponId) {
-    throw new Erro("Coupon Id is not sent");
+    throw new Error("Coupon ID is required");
   }
-  const existingCoupon = await Coupon.findOne({ _id: couponId });
+  const existingCoupon = await Coupon.findById(couponId);
 
   if (!existingCoupon) {
-    throw new Erro("Coupon is not available");
+    throw new Error("Coupon not found");
   }
 
   await Coupon.deleteOne({ _id: couponId });
@@ -324,26 +352,36 @@ const deleteCouponService = async (couponId) => {
   };
 };
 
-const getCouponService = async (role = "user",totalAmount) => {
-  if (role == "user") {
-const currentDate = new Date();
-        const coupons = await Coupon.find({
-            status: "Active",
-            expiryDate: { $gte: currentDate },
-            minCart: { $lte: totalAmount }
-        })
-    if (!coupons) {
-      throw new Error("Coupons is empty");
-    }
+const toggleCouponStatusService = async (couponId) => {
+  if (!couponId) {
+    throw new Error("Coupon ID is required");
+  }
+  const coupon = await Coupon.findById(couponId);
+  if (!coupon) {
+    throw new Error("Coupon not found");
+  }
+  coupon.status = coupon.status === "Active" ? "InActive" : "Active";
+  await coupon.save();
 
-    return coupons;
+  return {
+    success: true,
+    message: `Coupon ${coupon.status === "Active" ? "unblocked" : "blocked"} successfully`,
+    status: coupon.status,
+  };
+};
+
+const getCouponService = async (role = "user", totalAmount) => {
+  if (role === "user") {
+    const currentDate = new Date();
+    const coupons = await Coupon.find({
+      status: "Active",
+      expiryDate: { $gte: currentDate },
+      minCart: { $lte: totalAmount || 0 },
+    });
+    return coupons || [];
   } else {
-    const coupons = await Coupon.find()
-    if (!coupons) {
-      throw new Error("Coupons is empty")
-    }
-
-    return coupons
+    const coupons = await Coupon.find().sort({ createdAt: -1 });
+    return coupons || [];
   }
 };
 
@@ -352,5 +390,5 @@ module.exports = {
   getCouponService,
   editCouponService,
   deleteCouponService,
-  getCouponService,
+  toggleCouponStatusService,
 };

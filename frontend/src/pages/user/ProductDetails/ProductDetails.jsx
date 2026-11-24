@@ -15,9 +15,33 @@ const ProductDetails = () => {
   const navigate = useNavigate()
   const dispatch = useDispatch()
 
-  const product = location.state?.product || {}
+  const initialProduct = location.state?.product || {}
+  const [product, setProduct] = useState(initialProduct)
   const { _id, name, price, description, brand, category, countryOfOrgin, offer, status, vartiant = [] } = product
   const cartItems = useSelector((state) => state.cart?.items || []);
+
+  useEffect(() => {
+    if (location.state?.product) {
+      setProduct(location.state.product);
+    }
+  }, [location.state?.product]);
+
+  useEffect(() => {
+    const fetchFullProduct = async () => {
+      const prodId = _id || location.state?.product?._id;
+      if (prodId && (!product.vartiant || product.vartiant.length === 0)) {
+        try {
+          const res = await axiosInstance.get(`/user/product/getProduct/${prodId}`);
+          if (res?.data?.success && res.data.data) {
+            setProduct(res.data.data);
+          }
+        } catch (err) {
+          console.log("Failed to fetch full product details:", err);
+        }
+      }
+    };
+    fetchFullProduct();
+  }, [_id, location.state?.product]);
 
   const [selectedVariantIndex, setSelectedVariantIndex] = useState(0)
   const [activeImg, setActiveImg] = useState(0)
