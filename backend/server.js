@@ -14,19 +14,35 @@ app.use(express.json())
 dotenv.config({ path: path.join(__dirname, ".env") });
 dotenv.config();
 
-app.use(
-  cors({
-    origin: [
+const allowedOrigins = [
   "https://www.yazid.live",
   "https://yazid.live",
   "http://www.yazid.live",
   "http://yazid.live",
   "http://localhost:5173",
-  "http://localhost:3000"
-],
+  "http://localhost:3000",
+  "http://localhost:5174",
+  "http://localhost:2222"
+];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      if (
+        allowedOrigins.indexOf(origin) !== -1 ||
+        origin.endsWith(".yazid.live") ||
+        origin.includes("localhost") ||
+        origin.includes("127.0.0.1") ||
+        process.env.NODE_ENV !== "production"
+      ) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"]
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"]
   })
 );
 

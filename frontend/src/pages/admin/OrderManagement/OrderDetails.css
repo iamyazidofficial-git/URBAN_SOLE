@@ -1,5 +1,20 @@
 /* ================= ORDER DETAILS PAGE CSS (Exact Track Order Match) ================= */
 
+.od-page-container {
+  margin-left: 260px;
+  padding: 30px 40px;
+  min-height: 100vh;
+  background-color: #fcfbfb;
+  box-sizing: border-box;
+}
+
+@media (max-width: 900px) {
+  .od-page-container {
+    margin-left: 0;
+    padding: 20px 16px;
+  }
+}
+
 .to-header {
   margin-bottom: 24px;
 }

@@ -3,13 +3,33 @@ import { toast } from "react-toastify"
 import { STATUS_CODES } from "../constants/statusCodes"
 
 const getBaseURL = () => {
-  if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
-  }
-  if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    // Local development
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return import.meta.env.VITE_API_URL || "http://localhost:2222";
+    }
+
+    // Production / Global URL
+    // If running on domain/subdomain or IP, ensure we match current origin to prevent mixed-content or CORS issues
+    if (import.meta.env.VITE_API_URL) {
+      try {
+        const parsed = new URL(import.meta.env.VITE_API_URL);
+        if (
+          hostname === parsed.hostname ||
+          hostname.includes("yazid.live") ||
+          parsed.hostname.includes("yazid.live")
+        ) {
+          return `${window.location.origin}/api`;
+        }
+        return import.meta.env.VITE_API_URL;
+      } catch {
+        return import.meta.env.VITE_API_URL;
+      }
+    }
     return `${window.location.origin}/api`;
   }
-  return "http://localhost:2222";
+  return import.meta.env.VITE_API_URL || "http://localhost:2222";
 };
 
 const axiosInstance = axios.create({

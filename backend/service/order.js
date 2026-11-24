@@ -13,279 +13,248 @@ const mongoose=require("mongoose")
 const nodeCrypto = require("crypto");
 
 const Razorpay = require("razorpay");
-const razorpayInstance = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+
+const getRazorpayCredentials = () => {
+    const key_id = (process.env.RAZORPAY_KEY_ID || "rzp_test_TyBdnHhmwVXFOs").trim();
+    const key_secret = (process.env.RAZORPAY_KEY_SECRET || "rwAFwm44CXcHLRcGpIUWI6Bs").trim();
+    return { key_id, key_secret };
+};
+
+const getRazorpayInstance = () => {
+    const { key_id, key_secret } = getRazorpayCredentials();
+    return new Razorpay({ key_id, key_secret });
+};
+
+const findCoupon = async (selectedCoupon) => {
+    if (!selectedCoupon) return null;
+    const identifier = String(selectedCoupon).trim();
+    if (!identifier) return null;
+
+    let coupon = null;
+    if (mongoose.Types.ObjectId.isValid(identifier)) {
+        coupon = await Coupon.findById(identifier);
+    }
+    if (!coupon) {
+        coupon = await Coupon.findOne({ code: identifier.toUpperCase(), status: "Active" });
+    }
+    return coupon;
+};
+
+const calculateOrderPricing = (productData, readyCoupon) => {
+    let subTotal = 0;
+    const taxPercentage = 18;
+
+    const processedItems = (productData || []).map((rawItem) => {
+        let unitPrice = Number(rawItem.price) || 0;
+        if (rawItem.offer && Number(rawItem.offer) > 0) {
+            const offerDiscount = (unitPrice * Number(rawItem.offer)) / 100;
+            unitPrice -= offerDiscount;
+        }
+        unitPrice = Number(unitPrice.toFixed(2));
+        const qty = Math.max(1, Number(rawItem.quantity) || 1);
+        const lineTotal = Number((unitPrice * qty).toFixed(2));
+        subTotal += lineTotal;
+
+        return {
+            ...rawItem,
+            effectivePrice: unitPrice,
+            quantity: qty,
+            lineTotal: lineTotal
+        };
+    });
+
+    subTotal = Number(subTotal.toFixed(2));
+
+    let couponDiscount = 0;
+    if (readyCoupon) {
+        const minCart = Number(readyCoupon.minCart) || 0;
+        if (subTotal >= minCart) {
+            const isPercentage = (readyCoupon.discountType || "").trim().toLowerCase() === "percentage";
+            if (isPercentage) {
+                const calculated = (subTotal * Number(readyCoupon.discountValue)) / 100;
+                if (readyCoupon.maxDiscount && Number(readyCoupon.maxDiscount) > 0) {
+                    couponDiscount = Math.min(calculated, Number(readyCoupon.maxDiscount));
+                } else {
+                    couponDiscount = calculated;
+                }
+            } else {
+                couponDiscount = Number(readyCoupon.discountValue) || 0;
+            }
+            couponDiscount = Math.min(couponDiscount, subTotal);
+        }
+    }
+    couponDiscount = Number(couponDiscount.toFixed(2));
+
+    const taxableAmount = Math.max(0, subTotal - couponDiscount);
+    const tax = Number(((taxableAmount * taxPercentage) / 100).toFixed(2));
+
+    let shippingCharge = 0;
+    if (subTotal < 4000) {
+        if (subTotal < 1000) {
+            shippingCharge = 90;
+        } else if (subTotal < 2000) {
+            shippingCharge = 70;
+        } else {
+            shippingCharge = 40;
+        }
+    }
+
+    const totalAmount = Number((taxableAmount + tax + shippingCharge).toFixed(2));
+
+    processedItems.forEach((item) => {
+        const proportion = subTotal > 0 ? (item.lineTotal / subTotal) : 0;
+        const itemDiscount = Number((couponDiscount * proportion).toFixed(2));
+        const itemTax = Number((tax * proportion).toFixed(2));
+        item.tax = itemTax;
+        item.discount = itemDiscount;
+        item.itemTotal = Number((item.lineTotal - itemDiscount + itemTax).toFixed(2));
+    });
+
+    return {
+        subTotal,
+        taxPercentage,
+        tax,
+        shippingCharge,
+        couponDiscount,
+        totalAmount,
+        processedItems
+    };
+};
 
 const fetchCheckoutService=async(productData,selectedCoupon,type)=>{
+    const readyCoupon = await findCoupon(selectedCoupon);
+    const pricing = calculateOrderPricing(productData, readyCoupon);
 
-    let subTotal=0
-    let tax
-    let taxPercentage=18
-    let shippingCharge=0
-    let totalAmount
-    let couponDiscount
-
-    for (let item of productData){
-        let itemPrice=item.price
-        if(item?.offer){
-            const offerDiscount=(itemPrice*item?.offer)/100
-            itemPrice-=parseInt(offerDiscount)
-        }
-        const productTotal=itemPrice*item.quantity
-        subTotal+=productTotal
-    }
-
-    tax=(subTotal*taxPercentage)/100
-    
-    if(subTotal<4000){
-        if(subTotal<1000){
-            shippingCharge=90
-        }
-        else if(subTotal<2000){
-            shippingCharge=70
-        }
-        else if(subTotal<300){
-            shippingCharge=50
-        }
-        else{
-            shippingCharge=40
-        }
-    }
-
-
-    let readyCoupon
-
-    if (selectedCoupon) {
-    readyCoupon = await Coupon.findOne({ _id: selectedCoupon });
-  }
-
-    
-   totalAmount=subTotal+tax
-
-
-    if (readyCoupon && subTotal >= readyCoupon?.minCart) {
-    if (readyCoupon.discountType === "Percentage") {
-      const discount = (subTotal * readyCoupon.discountValue) / 100;
-      couponDiscount = readyCoupon.maxDiscount < discount ? readyCoupon.maxDiscount : discount;
-    } else {
-      couponDiscount = readyCoupon.discountValue;
-    }
-      totalAmount-=couponDiscount
-
-  }
-
-  totalAmount += shippingCharge
-  totalAmount = Number(totalAmount.toFixed(2));
-  couponDiscount = Number((couponDiscount || 0).toFixed(2))
-
-
-     return{
-        subTotal:subTotal,
-        taxPercentage:taxPercentage,
-        tax:tax,
-        totalAmount:totalAmount,
-        shippingCharge:shippingCharge,
-        couponDiscount:couponDiscount,
-        items:productData,
-        type:type||"single"
-    }
+    return {
+        subTotal: pricing.subTotal,
+        taxPercentage: pricing.taxPercentage,
+        tax: pricing.tax,
+        totalAmount: pricing.totalAmount,
+        shippingCharge: pricing.shippingCharge,
+        couponDiscount: pricing.couponDiscount,
+        couponId: readyCoupon ? readyCoupon._id : null,
+        couponCode: readyCoupon ? readyCoupon.code : null,
+        items: pricing.processedItems,
+        type: type || "single"
+    };
 }
 
 
 
 const placeOrderService=async(orderData)=>{
-   
+    const {productData,payment,address,coupon,userId,type}=orderData
 
-const {productData,payment,address,coupon,userId,type}=orderData
+    console.log("DDD",productData)
 
-console.log("DDD",productData)
-
-const inActiveProducts = await Product.find({
-    _id: { $in: productData.map(item => item.product) },
-    status: "InActive"
-});
-
-if (inActiveProducts.length > 0) {
-    throw new Error("This order contains inactive products");
-}
-
-if(!userId){
-    throw new Error("Session expired please login")
-}
-
-const user=await User.findOne({_id:userId})
-
-if(!user){
-    throw new Error("Session expired please login")
-}
-
-if(!address){
-    throw new Error("Address is required")
-}
-if(!payment){
-
-  throw new Error("please select an payment method")
-
-}
-if(!["CASHONDELIVERY","RAZORPAY","WALLET"].includes(payment.trim().toUpperCase())){
-
-    throw new Error("please select an payment method")
-
-}
-if(!productData){
-
-     throw new Error("please select order products")
-
-}
-
-let couponObject
-if (coupon) {
-    couponObject = await Coupon.findOne({ _id: coupon });
-    if (!couponObject) {
-      throw new Error("Coupon is unavailable");
-    }
-  }
-
-
-
-    let subTotal=0
-    let tax
-    let taxPercentage=18
-    let shippingCharge=0
-    let totalAmount=0
-    let totalProducts=productData.length
-    let couponDiscount
-    let orderItems=[]
-
-
-productData.forEach(item => {
-  if (item.offer) {
-    item.price -= (item.price * item.offer) / 100
-  }
-})
-
-subTotal=productData.reduce((acc,item)=>{
-acc+=item.price
-return acc
-},0)
-
-    
-    if(subTotal<6000){
-        if(subTotal<1000){
-            shippingCharge=90
-        }
-        else if(subTotal<3000){
-            shippingCharge=70
-        }
-        else if(subTotal<5000){
-            shippingCharge=50
-        }
-        else{
-            shippingCharge=40
-        }
+    if(!userId){
+        throw new Error("Session expired please login")
     }
 
+    const user=await User.findOne({_id:userId})
 
-if (couponObject && subTotal >= couponObject.minCart) {
-    if (couponObject.discountType === "Percentage") {
-      const discount = (couponObject.discountValue * subTotal) / 100;
-      couponDiscount = Math.min(discount, couponObject.maxDiscount || discount);
-    } else {
-      couponDiscount = couponObject.discountValue;
-    }
-  }
-
-
-if (couponDiscount) {
-
-  productData.forEach(item => {
-    const discount = (item.price / subTotal) * couponDiscount
-
-    const finalDiscount = Number(discount.toFixed(2))
-
-    item.itemTotal = Number(
-      (item.price - finalDiscount).toFixed(2)
-    )
-  })
-
-}
-
-tax=(subTotal*taxPercentage)/100
-
-productData.forEach(item => {
-  const productTax = (item.price / subTotal) *tax
-
-  item.tax = Number(productTax.toFixed(2))
-
-  item.itemTotal = Number(
-    (item.price + item.tax).toFixed(2)
-  )
-})
-
-
-for(const item of productData){
-
-
-    const productId = item.product || item._id;
-    const productName = item.productName || item.name;
-    const productImage = item.image || item.img;
-
-    const product = await Product.findOne({ _id: productId })
-    if (!product) {
-        throw new Error("Product not found");
+    if(!user){
+        throw new Error("Session expired please login")
     }
 
-    const itemVariant = await Variant.findOne({ 
-        _id: { $in: product.vartiant }, 
-        colour: item.colour 
-    })
-
-    if (!itemVariant) {
-        throw new Error("Product variant not found");
+    if(!address){
+        throw new Error("Address is required")
+    }
+    if(!payment){
+        throw new Error("Please select a payment method")
+    }
+    const paymentMethod = payment.trim().toUpperCase();
+    if(!["CASHONDELIVERY","RAZORPAY","WALLET"].includes(paymentMethod)){
+        throw new Error("Please select a valid payment method")
+    }
+    if(!productData || !Array.isArray(productData) || productData.length === 0){
+        throw new Error("Please select order products")
     }
 
-
-const itemSize = Number(item.size);
-const itemQuantity = Number(item.quantity);
-
-const updatedVariant = await Variant.findOneAndUpdate(
-    {
-        _id: itemVariant._id,
-        inventory: {
-            $elemMatch: {
-                size: itemSize,                   
-                quantity: { $gte: itemQuantity }  
-            }
-        }
-    },
-    {
-        $inc: { "inventory.$.quantity": -itemQuantity }
-    }
-);
-
-
-if (!updatedVariant) {
-    throw new Error(`${item.productName} is out of stock for size ${item.size}`);
-}
-
-
-    orderItems.push({
-        product: productId,
-        productName: productName,
-        variant: itemVariant ? itemVariant._id : null,
-        colour: item.colour,
-        image: productImage,
-        size: item.size,
-        price: item.price,
-        itemTotal: item.itemTotal,
-        quantity: item.quantity,
-        status: "PENDING",
+    const inActiveProducts = await Product.find({
+        _id: { $in: productData.map(item => item.product || item._id).filter(Boolean) },
+        status: "InActive"
     });
 
-totalAmount+=Number(item.itemTotal)
-}
+    if (inActiveProducts.length > 0) {
+        throw new Error("This order contains inactive products");
+    }
+
+    let couponObject = null;
+    if (coupon) {
+        couponObject = await findCoupon(coupon);
+        if (!couponObject) {
+            throw new Error("Coupon is unavailable or invalid");
+        }
+    }
+
+    const pricing = calculateOrderPricing(productData, couponObject);
+
+    // Verify wallet balance upfront before altering inventory
+    let userWallet = null;
+    if (paymentMethod === "WALLET") {
+        userWallet = await Wallet.findOne({ user: userId });
+        if (!userWallet || userWallet.balance < pricing.totalAmount) {
+            throw new Error("Insufficient wallet balance");
+        }
+    }
+
+    const orderItems = [];
+
+    // Check and deduct inventory exactly once
+    for (const item of pricing.processedItems) {
+        const productId = item.product || item._id;
+        const productName = item.productName || item.name;
+        const productImage = item.image || item.img;
+
+        const product = await Product.findOne({ _id: productId });
+        if (!product) {
+            throw new Error(`Product not found: ${productName || productId}`);
+        }
+
+        const itemVariant = await Variant.findOne({ 
+            _id: { $in: product.vartiant }, 
+            colour: item.colour 
+        });
+
+        if (!itemVariant) {
+            throw new Error(`Product variant not found for ${productName || 'Product'} (${item.colour})`);
+        }
+
+        const itemSize = Number(item.size);
+        const itemQuantity = Number(item.quantity) || 1;
+
+        const updatedVariant = await Variant.findOneAndUpdate(
+            {
+                _id: itemVariant._id,
+                inventory: {
+                    $elemMatch: {
+                        size: itemSize,                   
+                        quantity: { $gte: itemQuantity }  
+                    }
+                }
+            },
+            {
+                $inc: { "inventory.$.quantity": -itemQuantity }
+            }
+        );
+
+        if (!updatedVariant) {
+            throw new Error(`${productName || 'Product'} is out of stock for size ${item.size}`);
+        }
+
+        orderItems.push({
+            product: productId,
+            productName: productName,
+            variant: itemVariant ? itemVariant._id : null,
+            colour: item.colour,
+            image: productImage,
+            size: item.size,
+            price: item.effectivePrice,
+            itemTotal: item.itemTotal,
+            quantity: itemQuantity,
+            status: (paymentMethod === "WALLET" || paymentMethod === "CASHONDELIVERY") ? "PLACED" : "PENDING",
+        });
+    }
 
 
 const shippingAddress=await Address.findOne({_id:address}).select("fullName phoneNumber streetAddress apartment city state postalCode addressType")
@@ -327,149 +296,85 @@ const formattedDate = `${startDay}–${endDay} ${month} ${year}`;
 console.log(formattedDate);
 
 
-const orderedData={
-    orderId:orderId,
-    user:user?._id,
-    customerSnapshot:{
-        name:user?.name,
-        email:user?.email
-    },
-    items:orderItems,
-    shippingAddress:shippingAddress,
-     payment: {
-        method: payment.trim().toUpperCase(),
-        status: payment.trim().toUpperCase() === "WALLET" ? "PAID" : "PENDING"
-    },
-    pricing:{
-        subTotal:subTotal,
-        tax:tax,
-        taxPercentage:taxPercentage,
-        shippingCharge:shippingCharge?shippingCharge:0,
-        discount:couponDiscount||0,
-        totalAmount:Number(totalAmount)
-    }
-}
-
-if (payment.trim().toUpperCase() === "WALLET") {
-    userWallet = await Wallet.findOne({ user: userId });
-    
-    if (!userWallet || userWallet.balance < totalAmount) {
-        throw new Error("Insufficient wallet balance");
-    }
-}
-
-
-
-if (payment.trim().toUpperCase() === "WALLET" || payment.trim().toUpperCase() === "CASHONDELIVERY") {
-    orderedData["orderStatus"] = "PLACED";
-    orderedData.items.forEach(item => { item.status = "PLACED"; });
-} else {
-    orderedData["orderStatus"] = "PENDING";
-    orderedData.items.forEach(item => { item.status = "PENDING"; });
-}
-
-
-if (payment.trim().toUpperCase() === "WALLET") {
-    userWallet.balance -= totalAmount;
-    await userWallet.save();
-
-    await WalletTransaction.create({
-        wallet: userWallet._id,
+    const orderedData = {
+        orderId: orderId,
         user: user._id,
-        type: "DEBIT",
-        source: "ORDER_PAYMENT",
-        amount: totalAmount,
-        order: orderData.orderId, 
-        description: `Payment for order ${orderId}`,
-        referenceId: orderId
-    });
-}
-else if(payment.trim().toUpperCase()=="CASHONDELIVERY"){
-    orderedData["orderStatus"]="PLACED"
- orderedData.items.forEach(item => {
-        item.status = "PLACED";
-    })
-}
-else if(payment.trim().toUpperCase()=="RAZORPAY"){
-    orderedData["orderStatus"]="PENDING"
- orderedData.items.forEach(item => {
-        item.status = "PENDING";
-    })
-}
-
-
-let razorpayOrder = null
-
-if (payment.trim().toUpperCase() === "RAZORPAY") {
-    const options = {
-        amount: Math.round(totalAmount * 100), 
-        currency: "INR",
-        receipt: orderId,
+        customerSnapshot: {
+            name: user.name,
+            email: user.email
+        },
+        items: orderItems,
+        shippingAddress: shippingAddress,
+        payment: {
+            method: paymentMethod,
+            status: paymentMethod === "WALLET" ? "PAID" : "PENDING"
+        },
+        pricing: {
+            subTotal: pricing.subTotal,
+            tax: pricing.tax,
+            taxPercentage: pricing.taxPercentage,
+            shippingCharge: pricing.shippingCharge,
+            discount: pricing.couponDiscount,
+            totalAmount: pricing.totalAmount
+        },
+        orderStatus: (paymentMethod === "WALLET" || paymentMethod === "CASHONDELIVERY") ? "PLACED" : "PENDING"
     };
-    
-    try {
-        razorpayOrder = await razorpayInstance.orders.create(options);
-    } catch (error) {
-        console.error("Razorpay API Error Details:", error);
-        throw new Error("Payment Failed");
-    }
-}
 
-const newOrder=await Order.create(orderedData)
+    // Deduct wallet if wallet payment
+    if (paymentMethod === "WALLET" && userWallet) {
+        userWallet.balance = Number((userWallet.balance - pricing.totalAmount).toFixed(2));
+        await userWallet.save();
 
-
-for (item of productData){
-    
-    const productId = item.product || item._id;
-    const productName = item.productName || item.name;
-    const productImage = item.image || item.img;
-
-    const product = await Product.findOne({ _id: productId })
-    if (!product) {
-        throw new Error("Product not found");
+        await WalletTransaction.create({
+            wallet: userWallet._id,
+            user: user._id,
+            type: "DEBIT",
+            source: "ORDER_PAYMENT",
+            amount: pricing.totalAmount,
+            description: `Payment for order ${orderId}`,
+            referenceId: orderId
+        });
     }
 
-    const itemVariant = await Variant.findOne({ 
-        _id: { $in: product.vartiant }, 
-        colour: item.colour 
-    })
-
-    if (!itemVariant) {
-        throw new Error("Product variant not found");
-    }
-
-
-    const itemSize = Number(item.size);
-const itemQuantity = Number(item.quantity);
-
-const updatedVariant = await Variant.findOneAndUpdate(
-    {
-        _id: itemVariant._id,
-        inventory: {
-            $elemMatch: {
-                size: itemSize,                   
-                quantity: { $gte: itemQuantity }  
-            }
+    // Razorpay order creation
+    let razorpayOrder = null;
+    if (paymentMethod === "RAZORPAY") {
+        const options = {
+            amount: Math.round(pricing.totalAmount * 100), 
+            currency: "INR",
+            receipt: orderId,
+        };
+        
+        try {
+            const rzp = getRazorpayInstance();
+            razorpayOrder = await rzp.orders.create(options);
+        } catch (error) {
+            console.error("Razorpay API Error Details:", error);
+            throw new Error(error?.error?.description || error?.message || "Payment Failed");
         }
-    },
-    {
-        $inc: { "inventory.$.quantity": -(itemQuantity-1) }
     }
-);
 
+    const newOrder = await Order.create(orderedData);
 
-if (!updatedVariant) {
-    throw new Error(`${item.productName || 'Product'} is out of stock for size ${item.size}`);
-}
-}
+    // If coupon used, increment its count
+    if (couponObject) {
+        await Coupon.updateOne(
+            { _id: couponObject._id },
+            { 
+                $inc: { usedCount: 1 },
+                $push: { usedBy: userId }
+            }
+        );
+    }
 
 
 
 if(type=="cart"){
     const cart=await Cart.findOne({user:user._id})
-
-    cart.items=[]
-    await cart.save()
+    if (cart) {
+        cart.items=[]
+        await cart.save()
+    }
 }
 
 
@@ -478,6 +383,7 @@ const orderDetails={
     orderId:orderId,
     estimatedDelivery:formattedDate,
     razorpayOrder:razorpayOrder,
+    razorpayKeyId: getRazorpayCredentials().key_id,
     _id:newOrder._id
 }
 
@@ -609,8 +515,8 @@ const toggleStatusService=async(params,body)=>{
     }
 
     if (currentStatus === "PLACED") {
-        if (!["SHIPPED", "OUT_OF_DELIVERY", "CANCELLED"].includes(status)) {
-            throw new Error("Invalid status transition. From PLACED, you can only change to SHIPPED, OUT_OF_DELIVERY, or CANCELLED.");
+        if (!["SHIPPED", "CANCELLED"].includes(status)) {
+            throw new Error("Invalid status transition. From PLACED, you can only change to SHIPPED or CANCELLED.");
         }
     } 
     else if (currentStatus === "SHIPPED") {
@@ -644,21 +550,29 @@ const toggleStatusService=async(params,body)=>{
         
    order.cancellation.reason=reason
    order.cancellation.at=date
-   order.cancellation.by="USER"
+   order.cancellation.by="ADMIN"
 
     }
 
 
      if(status=="RETURN_REJECTED"){
 
-         if(!reason ||reason==""){
-        throw new Error("Reason is not passed")
-    }
+         if(!reason || reason.trim().length < 8){
+             throw new Error("Rejection reason must be at least 8 characters")
+         }
 
-  const date=new Date()
+         const date=new Date()
         
-   order.returnInfo.rejectionReason=reason
-   order.returnInforequestedAt=date
+         order.returnInfo.rejectionReason=reason.trim()
+         order.returnInfo.rejectedAt=date
+
+         const requestedItems = order.items.filter(item => item.status == "RETURN_REQUESTED")
+         requestedItems.forEach(item => {
+             item.status = "RETURN_REJECTED"
+             item.returnInfo = item.returnInfo || {}
+             item.returnInfo.rejectionReason = reason.trim()
+             item.returnInfo.rejectedAt = date
+         })
 
     }
 
@@ -708,7 +622,15 @@ const toggleStatusService=async(params,body)=>{
 
     order.orderStatus=status
 
-    items.map(item=>item.status=status)
+    items.forEach(item => {
+        item.status = status;
+        if (!item.statusTimeline) item.statusTimeline = [];
+        item.statusTimeline.push({ status, at: new Date() });
+    });
+
+    if (status === "DELIVERED") {
+        order.deliveredAt = new Date();
+    }
 
 
     await order.save()
@@ -971,7 +893,7 @@ const toggleItemService=async(params,body)=>{
         throw new Error("Order is not found")
     }
 
-    const item=order.items.find(item=>item.product==itemId)
+    const item = order.items.find(item => item.product?.toString() === itemId.toString() || item._id?.toString() === itemId.toString())
 
     if (!item) {
         throw new Error("Item is not found in this order");
@@ -983,8 +905,8 @@ const toggleItemService=async(params,body)=>{
         throw new Error(`Item is already in ${currentStatus} state. Status cannot be changed.`);
     }
     if (currentStatus === "PLACED") {
-        if (!["SHIPPED", "OUT_OF_DELIVERY", "CANCELLED"].includes(status)) {
-            throw new Error("Invalid status transition. From PLACED, you can only change to SHIPPED, OUT_OF_DELIVERY, or CANCELLED.");
+        if (!["SHIPPED", "CANCELLED"].includes(status)) {
+            throw new Error("Invalid status transition. From PLACED, you can only change to SHIPPED or CANCELLED.");
         }
     } 
     else if (currentStatus === "SHIPPED") {
@@ -1018,7 +940,7 @@ const toggleItemService=async(params,body)=>{
         
    item.cancellation.reason=reason
    item.cancellation.at=date
-   item.cancellation.by="USER"
+   item.cancellation.by="ADMIN"
     }
 
 
@@ -1026,14 +948,15 @@ const toggleItemService=async(params,body)=>{
     
     if(status=="RETURN_REJECTED"){
 
-         if(!reason ||reason==""){
-        throw new Error("Reason is not passed")
-    }
+         if(!reason || reason.trim().length < 8){
+             throw new Error("Rejection reason must be at least 8 characters")
+         }
 
-  const date=new Date()
+         const date=new Date()
         
-   item.returnInfo.rejectionReason=reason
-   item.returnInfo.rejectedAt=date
+         item.returnInfo = item.returnInfo || {}
+         item.returnInfo.rejectionReason=reason.trim()
+         item.returnInfo.rejectedAt=date
     }
 
 
@@ -1050,6 +973,8 @@ const toggleItemService=async(params,body)=>{
     console.log("YAZZZ",status)
 
 item.status=status
+if (!item.statusTimeline) item.statusTimeline = [];
+item.statusTimeline.push({ status, at: new Date() });
 console.log("IN",item)
 
 
@@ -1073,7 +998,8 @@ const verifyPaymentService = async (body) => {
         throw new Error("Order ID is required");
     }
 
-    const hmac = nodeCrypto.createHmac("sha256", process.env.RAZORPAY_KEY_SECRET);
+    const { key_secret } = getRazorpayCredentials();
+    const hmac = nodeCrypto.createHmac("sha256", key_secret);
     hmac.update(razorpay_order_id + "|" + razorpay_payment_id);
     const generated_signature = hmac.digest("hex");
 
@@ -1140,10 +1066,12 @@ const retryPaymentService = async ({ orderId, _id } = {}) => {
         receipt: order.orderId || order._id.toString(),
     };
 
-    const razorpayOrder = await razorpayInstance.orders.create(options);
+    const rzp = getRazorpayInstance();
+    const razorpayOrder = await rzp.orders.create(options);
 
     return {
         razorpayOrder,
+        razorpayKeyId: getRazorpayCredentials().key_id,
         _id: order._id,
         orderId: order.orderId,
         customerSnapshot: order.customerSnapshot,

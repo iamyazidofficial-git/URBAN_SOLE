@@ -4,9 +4,9 @@ import { useLocation } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 
 const OrderSuccess = () => {
-    const location=useLocation()
-    const {orderId,estimatedDelivery,_id}=location?.state
-    const navigate=useNavigate()
+    const location = useLocation();
+    const { orderId, estimatedDelivery, _id } = location?.state || {};
+    const navigate = useNavigate();
   return (
     <div className="order-success-container">
       <div className="order-success-card">

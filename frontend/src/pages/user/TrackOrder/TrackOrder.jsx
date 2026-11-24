@@ -7,6 +7,7 @@ import axiosInstance from '../../../utils/axiosInstance';
 import { toast, ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import Loader from '../../../partials/Loader/Loader';
+import { loadRazorpayScript } from '../../../utils/loadRazorpay';
 
 const TrackOrder = () => {
   const [order,setOrder]=useState([])
@@ -135,10 +136,21 @@ const TrackOrder = () => {
     });
 
     if (res.data?.success) {
-      const { razorpayOrder, customerSnapshot, _id: dbOrderId, orderId: customOrderId } = res.data.data;
+      const { razorpayOrder, customerSnapshot, _id: dbOrderId, orderId: customOrderId, razorpayKeyId } = res.data.data;
+
+      const isLoaded = await loadRazorpayScript();
+      if (!isLoaded || !window.Razorpay) {
+        toast.error("Payment gateway failed to load. Please refresh.");
+        return;
+      }
+
+      const razorpayKey =
+        razorpayKeyId ||
+        import.meta.env.VITE_RAZORPAY_KEY_ID ||
+        "rzp_test_TyBdnHhmwVXFOs";
 
       const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        key: razorpayKey,
         amount: razorpayOrder.amount,
         currency: razorpayOrder.currency,
         name: "URBAN SOLE",

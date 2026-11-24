@@ -3,6 +3,7 @@ import './PaymentFailed.css';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axiosInstance from '../../../utils/axiosInstance';
 import { toast } from 'react-toastify';
+import { loadRazorpayScript } from '../../../utils/loadRazorpay';
 
 const PaymentFailed = () => {
   const location = useLocation();
@@ -26,17 +27,23 @@ const PaymentFailed = () => {
     const res = await axiosInstance.post("/user/checkout/retry-payment", { orderId, _id });
 
     if (res.data?.success) {
-      const { razorpayOrder, customerSnapshot, _id: dbOrderId, orderId: verifiedOrderId } = res.data.data;
+      const { razorpayOrder, customerSnapshot, _id: dbOrderId, orderId: verifiedOrderId, razorpayKeyId } = res.data.data;
       const finalDbId = _id || dbOrderId;
       const finalOrderId = orderId || verifiedOrderId;
 
-      if (!window.Razorpay) {
+      const isLoaded = await loadRazorpayScript();
+      if (!isLoaded || !window.Razorpay) {
         toast.error("Payment gateway failed to load. Please refresh.");
         return;
       }
 
+      const razorpayKey =
+        razorpayKeyId ||
+        import.meta.env.VITE_RAZORPAY_KEY_ID ||
+        "rzp_test_TyBdnHhmwVXFOs";
+
       const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        key: razorpayKey,
         amount: razorpayOrder.amount,
         currency: razorpayOrder.currency,
         name: "URBAN SOLE",
