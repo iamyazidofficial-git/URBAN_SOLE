@@ -11,8 +11,20 @@ const app=express()
 app.use(express.urlencoded({extended:true}))
 app.use(express.json())
 dotenv.config();
-app.use(cors())
 
+app.use(
+  cors({
+    origin: [
+      "https://www.yazid.live",
+      "https://yazid.live",
+      "http://localhost:5173",
+      "http://localhost:3000"
+    ],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+  })
+);
 
 /**************User Routes*************/
 
