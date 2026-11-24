@@ -4,12 +4,14 @@ const express=require("express")
 const bycrypt=require("bcryptjs")
 const jwt=require("jsonwebtoken")
 const dotenv = require("dotenv")
+const path = require("path")
 const cors=require("cors")
 
 const connectDB = require("./config/db")
 const app=express()
 app.use(express.urlencoded({extended:true}))
 app.use(express.json())
+dotenv.config({ path: path.join(__dirname, ".env") });
 dotenv.config();
 
 app.use(
@@ -72,6 +74,26 @@ app.use("/admin/product",adminProduct)
 app.use("/admin/brand",brand)
 app.use("/admin/coupon",coupon)
 app.use("/admin/order",adminOrder)
+
+// Support /api prefix for reverse proxy / production deployments
+app.use("/api/user",authUser) 
+app.use("/api/user/profile",profile)
+app.use("/api/user/address",address)
+app.use("/api/user/product",userProduct)
+app.use("/api/user/cart",cart)
+app.use("/api/user/wishlist", wishlist)
+app.use("/api/user/checkout",checkout)
+app.use("/api/user/order",order)
+app.use("/api/user/wallet",wallet)
+app.use("/api/user/review",review)
+app.use("/api/user/referral",referral)
+app.use("/api/admin",authAdmin)
+app.use("/api/admin/customer",customer)
+app.use("/api/admin/category",category)
+app.use("/api/admin/product",adminProduct)
+app.use("/api/admin/brand",brand)
+app.use("/api/admin/coupon",coupon)
+app.use("/api/admin/order",adminOrder)
 
 const startServer = async () => {
 

@@ -66,7 +66,7 @@ const CategoryManagement = () => {
   const onSubmit = async (data) => {
     try {
       const response = await axiosInstance.post(
-        "http://localhost:2222/admin/category/addCategory",
+        "/admin/category/addCategory",
         {
           name: data?.name,
           description: data?.description,
@@ -90,7 +90,7 @@ const CategoryManagement = () => {
     try {
     
       const response = await axiosInstance.put(
-        `http://localhost:2222/admin/category/editCategory/${data._id}`,
+        `/admin/category/editCategory/${data._id}`,
         data,
       );
       if (response.data?.success == true) {
@@ -107,7 +107,7 @@ const CategoryManagement = () => {
       console.log("Page",page)
       console.log("Search",search)
       const response = await axiosInstance.get(
-        `http://localhost:2222/admin/category/getCategory/?page=${page}&limit=5&search=${search}`,
+        `/admin/category/getCategory/?page=${page}&limit=5&search=${search}`,
       );
 
       if (response.data?.success == true) {
@@ -123,7 +123,7 @@ const CategoryManagement = () => {
   const deleteCategory = async()=>{
     setNewError("")
     try{
-      const response=await axiosInstance.patch(`http://localhost:2222/admin/category/deleteCategory/${deleteId}`)
+      const response=await axiosInstance.patch(`/admin/category/deleteCategory/${deleteId}`)
       
     }catch(error){
       console.log(error.response?.data?.message||"Something went wrong")
@@ -138,7 +138,7 @@ const CategoryManagement = () => {
 
   const toggleStatus=async(id)=>{
     try{
-      const response=await axiosInstance.patch(`http://localhost:2222/admin/category/toggleStatus/${id}`)
+      const response=await axiosInstance.patch(`/admin/category/toggleStatus/${id}`)
       if (response.data?.success === true) {
         getCategories()
         

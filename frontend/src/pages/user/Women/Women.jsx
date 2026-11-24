@@ -67,7 +67,7 @@ const Women = () => {
       const priceQuery = activeFilters.price
       const colorQuery = activeFilters.color
 
-      const url = `http://localhost:2222/user/product/getProducts?gender=Women&category=${categoryQuery}&brand=${brandQuery}&price=${priceQuery}&color=${colorQuery}&size=${sizeQuery}&search=${searchQuery}&sort=${sortBy}&page=${currentPage}&limit=8`      
+      const url = `/user/product/getProducts?gender=Women&category=${categoryQuery}&brand=${brandQuery}&price=${priceQuery}&color=${colorQuery}&size=${sizeQuery}&search=${searchQuery}&sort=${sortBy}&page=${currentPage}&limit=8`      
       const response = await axiosInstance.get(url)
       
       if (response.data?.success === true) {

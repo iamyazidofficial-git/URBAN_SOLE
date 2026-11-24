@@ -21,12 +21,12 @@ const ForgottPassword = () => {
       }
 
       const response = await axiosInstance.post(
-        "http://localhost:2222/user/forgottPassword",
+        "/user/forgottPassword",
         { email: email },
       )
 
       if (response.data.success == true) {
-        await axiosInstance.post("http://localhost:2222/user/generateOTP", {
+        await axiosInstance.post("/user/generateOTP", {
           email: response.data.email,
         })
         navigate("/user/verifyOTP", {

@@ -2,12 +2,27 @@ import axios from "axios"
 import { toast } from "react-toastify"
 import { STATUS_CODES } from "../constants/statusCodes"
 
+const getBaseURL = () => {
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
+  if (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1") {
+    return `${window.location.origin}/api`;
+  }
+  return "http://localhost:2222";
+};
+
 const axiosInstance = axios.create({
-  baseURL: "http://localhost:2222",
+  baseURL: getBaseURL(),
 })
 
 axiosInstance.interceptors.request.use(
   (config) => {
+    // If config.url has hardcoded localhost:2222, strip it so it routes through baseURL
+    if (config.url && typeof config.url === "string") {
+      config.url = config.url.replace(/^https?:\/\/localhost:2222/i, "");
+    }
+
     console.log("AXIOS REQUEST:", config.method, config.url)
     const token = localStorage.getItem("token")
     console.log("AXIOS TOKEN:", token)

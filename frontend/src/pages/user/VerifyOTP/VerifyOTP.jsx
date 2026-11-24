@@ -100,7 +100,7 @@ export default function VerifyOTP() {
 
     try {
       const response = await axiosInstance.post(
-        "http://localhost:2222/user/verifyOTP",
+        "/user/verifyOTP",
         {
           verificationCode,
           email: email,
@@ -163,8 +163,8 @@ export default function VerifyOTP() {
         resendEmail = email;
       }
 
-      const response = await axios.post(
-        "http://localhost:2222/user/generateOTP",
+      const response = await axiosInstance.post(
+        "/user/generateOTP",
         {
           email: resendEmail,
         },
