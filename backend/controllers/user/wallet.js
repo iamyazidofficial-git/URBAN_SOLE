@@ -56,13 +56,16 @@ const createOrder = async (req, res) => {
             });
         }
 
+        const key_id = (process.env.RAZORPAY_KEY_ID || "rzp_test_TyBdnHhmwVXFOs").trim();
+        const key_secret = (process.env.RAZORPAY_KEY_SECRET || "rwAFwm44CXcHLRcGpIUWI6Bs").trim();
+
         const razorpayInstance = new Razorpay({
-            key_id: process.env.RAZORPAY_KEY_ID,
-            key_secret: process.env.RAZORPAY_KEY_SECRET,
+            key_id,
+            key_secret,
         });
 
         const options = {
-            amount: Number(amount) * 100, // paise-ലേക്ക് മാറ്റുന്നു
+            amount: Math.round(Number(amount) * 100), // convert to paise
             currency: "INR",
             receipt: `receipt_wallet_${Date.now()}`
         };
@@ -73,7 +76,8 @@ const createOrder = async (req, res) => {
             success: true,
             id: order.id,
             amount: order.amount,
-            currency: order.currency
+            currency: order.currency,
+            razorpayKeyId: key_id
         });
 
     } catch (error) {

@@ -6,6 +6,7 @@ import UserFooter from '../../../partials/UserFooter/UserFooter'
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import Loader from '../../../partials/Loader/Loader';
+import { loadRazorpayScript } from '../../../utils/loadRazorpay';
 
 const Wallet = () => {
   const [balance, setBalance] = useState(0);
@@ -52,8 +53,19 @@ const Wallet = () => {
 
       const order = orderRes.data;
 
+      const isLoaded = await loadRazorpayScript();
+      if (!isLoaded || !window.Razorpay) {
+        toast.error("Payment gateway failed to load. Please refresh.");
+        return;
+      }
+
+      const razorpayKey =
+        order.razorpayKeyId ||
+        import.meta.env.VITE_RAZORPAY_KEY_ID ||
+        "rzp_test_TyBdnHhmwVXFOs";
+
       const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        key: razorpayKey,
         amount: order.amount,
         currency: order.currency,
         name: "URBAN SOLE",

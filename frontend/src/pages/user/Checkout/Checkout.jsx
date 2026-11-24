@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { useNavigate } from "react-router-dom";
+import { loadRazorpayScript } from "../../../utils/loadRazorpay";
 
 // ==========================================
 // ADDRESS FORM FIELDS COMPONENT
@@ -200,24 +201,24 @@ export default function Checkout() {
   const [coupons, setCoupons] = useState([]);
   const [couponModal, setCouponModal] = useState(false);
   const [selectedCoupon, setSelectedCoupon] = useState("");
-  
+
   const location = useLocation();
   const currentData = location?.state?.data;
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  
+
   const [saving, setSaving] = useState(false);
   const [newError, setNewError] = useState("");
   const [places, setPlaces] = useState([]);
   const [pinLoading, setPinLoading] = useState(false);
   const [pinError, setPinError] = useState("");
-  const [paymentMethod,selectedPaymentMethod]=useState("cashondelivery")
-  const [orderConfirmModal,setOrderConfirmModal]=useState(false)
-  
+  const [paymentMethod, selectedPaymentMethod] = useState("cashondelivery")
+  const [orderConfirmModal, setOrderConfirmModal] = useState(false)
+
   const token = localStorage.getItem("token");
-  const navigate=useNavigate()
+  const navigate = useNavigate()
 
   // React Hook Form Setup
   const {
@@ -418,140 +419,179 @@ export default function Checkout() {
     }
   };
 
- 
-  const getCheckout = async () => {
-try {
-const response = await axiosInstance.get(`/user/checkout/fetchCheckout`, {
-params: {
-productData: JSON.stringify(currentData),
-type: currentData?.type || "single",
-selectedCoupon: selectedCoupon || "",
-},
-});
-if (response.data?.success == true) {
-    console.log("CHECKOUT RESPONSE:", response.data.data);
-  console.log("COUPON DISCOUNT:", response.data.data.couponDiscount);
-  console.log("TOTAL AMOUNT:", response.data.data.totalAmount);
 
-  setOrderData(response.data.data);
-  setCoupons(response.data?.coupons || []);
-setOrderData(response.data?.data);
-setCoupons(response?.data?.coupons || []);
-}
-} catch (error) {
-console.error("CHECKOUT FETCH ERROR:", error);
-}
-};
-
-
-
-
-const handleApplyCouponCode = async () => {
-    if (!couponCodeInput.trim()) {
-        toast.error("Please enter a coupon code");
-        return;
-    }
-
+  const getCheckout = async (couponOverride) => {
+    const activeCoupon = couponOverride !== undefined ? couponOverride : selectedCoupon;
     try {
-        const response = await axiosInstance.post("/user/checkout/applyCoupon", {
-            code: couponCodeInput.trim(),
-            productData: JSON.stringify(currentData),
-            type: currentData?.type || "single"
-        });
+      const response = await axiosInstance.get(`/user/checkout/fetchCheckout`, {
+        params: {
+          productData: JSON.stringify(currentData),
+          type: currentData?.type || "single",
+          selectedCoupon: activeCoupon || "",
+        },
+      });
+      if (response.data?.success === true) {
+        console.log("CHECKOUT RESPONSE:", response.data.data);
+        console.log("COUPON DISCOUNT:", response.data.data.couponDiscount);
+        console.log("TOTAL AMOUNT:", response.data.data.totalAmount);
 
-        if (response.data?.success) {
-            setSelectedCoupon(response.data.couponId);
-            toast.success("Coupon applied successfully!");
-            setCouponCodeInput("");
-            setCouponModal(false);
-            getCheckout();
-        }
+        setOrderData(response.data.data);
+        setCoupons(response.data?.coupons || []);
+      }
     } catch (error) {
-        toast.error(error?.response?.data?.message || "Invalid or expired coupon");
+      console.error("CHECKOUT FETCH ERROR:", error);
     }
-};
+  };
 
+  const handleApplyCouponCode = async () => {
+    if (!couponCodeInput.trim()) {
+      toast.error("Please enter a coupon code");
+      return;
+    }
 
-
-  const placeOrder=async()=>{
-    try{
-      const response=await axiosInstance.post("/user/checkout/placeOrder",{productData:orderData.items,address:selectedAddress._id,payment:paymentMethod,coupon:selectedCoupon||"",type:orderData.type||"single"})
-      console.log("JJJJ",response)
-
-      if(response?.data?.success==true){
-
-        const resData = response.data.data
-       if (paymentMethod.trim().toLowerCase() === "razorpay") {
-          
- const { razorpayOrder, orderId }=resData
-
- const options = {
-  key: import.meta.env.VITE_RAZORPAY_KEY_ID,
-  amount: razorpayOrder.amount,
-  currency: razorpayOrder.currency,
-  name: "URBAN SOLE",
-  description: "Product Purchase Payment",
-  order_id: razorpayOrder.id,
-  handler: async function (res) {
     try {
-      const verifyRes = await axiosInstance.post("/user/checkout/verify-payment", {
-        razorpay_order_id: res.razorpay_order_id,
-        razorpay_payment_id: res.razorpay_payment_id,
-        razorpay_signature: res.razorpay_signature,
-        orderId: orderId
+      const response = await axiosInstance.post("/user/checkout/applyCoupon", {
+        code: couponCodeInput.trim(),
+        productData: JSON.stringify(currentData),
+        type: currentData?.type || "single"
       });
 
-      if (verifyRes.data.success) {
-        navigate("/user/checkout/orderSuccess", { replace: true, state: resData });
+      if (response.data?.success) {
+        const couponId = response.data.couponId;
+        setSelectedCoupon(couponId);
+        toast.success("Coupon applied successfully!");
+        setCouponCodeInput("");
+        setCouponModal(false);
+        await getCheckout(couponId);
       }
-    } catch (err) {
-      toast.error("Payment verification failed");
-      console.error(err);
-      navigate("/user/paymentFailed", { 
-        replace: true, 
-        state: { orderId: resData?.orderId, items: orderData?.items,_id:orderData._id } 
-      });
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Invalid or expired coupon");
     }
-  },
-  modal: {
-    ondismiss: function () {
-      toast.error("Payment cancelled");
-      navigate("/user/paymentFailed", { 
-        replace: true, 
-        state: { orderId: resData?.orderId, items: orderData?.items,_id:orderData._id } 
-      });
+  };
+
+  const handleRemoveCoupon = async () => {
+    setSelectedCoupon("");
+    toast.info("Coupon removed");
+    await getCheckout("");
+  };
+
+  const placeOrder = async () => {
+    if (!selectedAddress || !selectedAddress._id) {
+      toast.error("Please select a delivery address");
+      setOrderConfirmModal(false);
+      return;
     }
-  },
-  prefill: {
-    name: selectedAddress.fullName,
-    contact: selectedAddress.phoneNumber,
-  },
-  theme: {
-    color: "#000000"
-  }
-};
+    if (!orderData?.items || orderData.items.length === 0) {
+      toast.error("No items in order");
+      setOrderConfirmModal(false);
+      return;
+    }
+    try {
+      const response = await axiosInstance.post("/user/checkout/placeOrder", {
+        productData: orderData.items,
+        address: selectedAddress._id,
+        payment: paymentMethod,
+        coupon: selectedCoupon || "",
+        type: orderData.type || "single",
+      });
+      console.log("JJJJ", response);
 
- const rzp = new window.Razorpay(options);
- rzp.open();
+      if (response?.data?.success === true) {
+        const resData = response.data.data;
+        if (paymentMethod.trim().toLowerCase() === "razorpay") {
+          const { razorpayOrder, orderId, razorpayKeyId } = resData;
 
- }else {
+          if (!razorpayOrder) {
+            toast.error("Failed to initialize Razorpay order");
+            return;
+          }
 
- navigate("/user/checkout/orderSuccess", { replace: true, state: resData });
- }
+          const isLoaded = await loadRazorpayScript();
+          if (!isLoaded || !window.Razorpay) {
+            toast.error("Razorpay SDK failed to load. Please check your internet connection.");
+            return;
+          }
+
+          const razorpayKey =
+            razorpayKeyId ||
+            resData.razorpayKey ||
+            import.meta.env.VITE_RAZORPAY_KEY_ID ||
+            "rzp_test_TyBdnHhmwVXFOs";
+
+          const options = {
+            key: razorpayKey,
+            amount: razorpayOrder.amount,
+            currency: razorpayOrder.currency,
+            name: "URBAN SOLE",
+            description: "Product Purchase Payment",
+            order_id: razorpayOrder.id,
+            handler: async function (res) {
+              try {
+                const verifyRes = await axiosInstance.post("/user/checkout/verify-payment", {
+                  razorpay_order_id: res.razorpay_order_id,
+                  razorpay_payment_id: res.razorpay_payment_id,
+                  razorpay_signature: res.razorpay_signature,
+                  orderId: orderId,
+                });
+
+                if (verifyRes.data.success) {
+                  navigate("/user/checkout/orderSuccess", { replace: true, state: resData });
+                }
+              } catch (err) {
+                toast.error("Payment verification failed");
+                console.error(err);
+                navigate("/user/paymentFailed", {
+                  replace: true,
+                  state: { orderId: resData?.orderId, items: orderData?.items, _id: resData?._id },
+                });
+              }
+            },
+            modal: {
+              ondismiss: function () {
+                toast.error("Payment cancelled");
+                navigate("/user/paymentFailed", {
+                  replace: true,
+                  state: { orderId: resData?.orderId, items: orderData?.items, _id: resData?._id },
+                });
+              },
+            },
+            prefill: {
+              name: selectedAddress?.fullName || "",
+              contact: selectedAddress?.phoneNumber || "",
+            },
+            theme: {
+              color: "#000000",
+            },
+          };
+
+          const rzp = new window.Razorpay(options);
+          rzp.on("payment.failed", function (response) {
+            console.error("Razorpay payment failed:", response.error);
+            toast.error(response.error?.description || "Payment failed");
+            navigate("/user/paymentFailed", {
+              replace: true,
+              state: { orderId: resData?.orderId, items: orderData?.items, _id: resData?._id },
+            });
+          });
+          rzp.open();
+        } else {
+          navigate("/user/checkout/orderSuccess", { replace: true, state: resData });
+        }
       }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || error?.message || "Something went wrong");
+      console.log(error);
+    } finally {
+      setOrderConfirmModal(false);
     }
-    catch(error){
-     toast.error(error?.response?.data?.message||"Something went wrong");
+  };
 
-      console.log(error)
-    }finally{
-      setOrderConfirmModal(false)
-    }
-  }
+  useEffect(() => {
+    getAddresses();
+  }, []);
 
   useEffect(() => {
     getCheckout();
-    getAddresses();
   }, [selectedCoupon]);
 
   return (
@@ -595,13 +635,13 @@ const handleApplyCouponCode = async () => {
                       checked={selectedAddress?._id === address._id}
                       onChange={() => setSelectedAddress(address)}
                     />
-<div className="address-header-row" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-        <div className="address-name">{address.fullName}</div>
-        <span className="address-type" style={{marginBottom:"6px"}}>{address.addressType}</span>
-        {address.isDefault && (
-          <span className="badge" style={{ fontSize: "8px",marginLeft:"2px",marginBottom:"6px", padding: "0px 6px", background: "#e0e0e0", borderRadius: "0px", fontWeight: "600" }}>DEFAULT</span>
-        )}
-      </div>                    <div className="address-details">
+                    <div className="address-header-row" style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <div className="address-name">{address.fullName}</div>
+                      <span className="address-type" style={{ marginBottom: "6px" }}>{address.addressType}</span>
+                      {address.isDefault && (
+                        <span className="badge" style={{ fontSize: "8px", marginLeft: "2px", marginBottom: "6px", padding: "0px 6px", background: "#e0e0e0", borderRadius: "0px", fontWeight: "600" }}>DEFAULT</span>
+                      )}
+                    </div>                    <div className="address-details">
                       <p>{address.streetAddress}, {address.apartment}</p>
                       <p>{address.city}, {address.state}</p>
                       <p className="phone-spacing">Phone: {address.phoneNumber}</p>
@@ -636,8 +676,8 @@ const handleApplyCouponCode = async () => {
                 <div className="order-item-box" key={idx}>
                   <img
                     className="order-item-img"
-                    src={item.img||item.image}
-                    alt={item.name||item.productName}
+                    src={item.img || item.image}
+                    alt={item.name || item.productName}
                   />
                   <div className="order-item-info">
                     <div>
@@ -649,10 +689,10 @@ const handleApplyCouponCode = async () => {
                     </div>
                     <div className="order-item-bottom">
                       <span className="item-qty">Qty: {item.quantity}</span>
-<p className="ms-card-price"> ₹{item.offer && item.offer > 0 
-                      ? Math.round(item.price - (item.price * item.offer) / 100) 
-                      : item.price}
-                    </p>                    </div>
+                      <p className="ms-card-price"> ₹{item.offer && item.offer > 0
+                        ? Math.round(item.price - (item.price * item.offer) / 100)
+                        : item.price}
+                      </p>                    </div>
                   </div>
                 </div>
               ))}
@@ -663,13 +703,13 @@ const handleApplyCouponCode = async () => {
               <h2 className="section-heading">Payment Method</h2>
               <div className="payment-options-group">
                 <label className="payment-card">
-                <input className="payment-radio"
-                name="payment"
-                 type="radio"
-                 value="razorpay"
-                 checked={paymentMethod === "razorpay"}
-                 onChange={(e) => selectedPaymentMethod(e.target.value)}
-                />
+                  <input className="payment-radio"
+                    name="payment"
+                    type="radio"
+                    value="razorpay"
+                    checked={paymentMethod === "razorpay"}
+                    onChange={(e) => selectedPaymentMethod(e.target.value)}
+                  />
                   <div>
                     <span className="payment-title">Razor Pay</span>
                     <span className="payment-desc">
@@ -678,14 +718,14 @@ const handleApplyCouponCode = async () => {
                   </div>
                 </label>
                 <label className="payment-card">
-<input className="payment-radio"
-                name="payment"
-                 type="radio"
-                 value="cashondelivery"
-                 checked={paymentMethod === "cashondelivery"}
-                 onChange={(e) => selectedPaymentMethod(e.target.value)}
-                /> 
-                   <div>
+                  <input className="payment-radio"
+                    name="payment"
+                    type="radio"
+                    value="cashondelivery"
+                    checked={paymentMethod === "cashondelivery"}
+                    onChange={(e) => selectedPaymentMethod(e.target.value)}
+                  />
+                  <div>
                     <span className="payment-title">Cash on Delivery</span>
                     <span className="payment-desc">
                       Pay when your order arrives at your doorstep.
@@ -693,13 +733,13 @@ const handleApplyCouponCode = async () => {
                   </div>
                 </label>
                 <label className="payment-card">
-<input className="payment-radio"
-                name="payment"
-                 type="radio"
-                 value="wallet"
-                 checked={paymentMethod === "wallet"}
-                 onChange={(e) => selectedPaymentMethod(e.target.value)}
-                />                  <div>
+                  <input className="payment-radio"
+                    name="payment"
+                    type="radio"
+                    value="wallet"
+                    checked={paymentMethod === "wallet"}
+                    onChange={(e) => selectedPaymentMethod(e.target.value)}
+                  />                  <div>
                     <span className="payment-title">Wallet</span>
                     <span className="payment-desc">
                       Pay using your digital wallet balance.
@@ -730,11 +770,11 @@ const handleApplyCouponCode = async () => {
                     <span>Tax</span>
                     <span className="price-highlight">+{orderData.tax}</span>
                   </div>
-                  {orderData?.couponDiscount && (
-                    <div className="price-row">
+                  {orderData?.couponDiscount > 0 && (
+                    <div className="price-row" style={{ color: "#16a34a" }}>
                       <span>Coupon Discount</span>
-                      <span className="price-highlight">
-                        {orderData.couponDiscount}
+                      <span className="price-highlight" style={{ color: "#16a34a" }}>
+                        -₹{orderData.couponDiscount}
                       </span>
                     </div>
                   )}
@@ -743,7 +783,7 @@ const handleApplyCouponCode = async () => {
                     <span className="price-highlight">
                       {orderData.shippingCharge == 0
                         ? "FREE"
-                        : orderData.shippingCharge}
+                        : `+₹${orderData.shippingCharge}`}
                     </span>
                   </div>
                 </div>
@@ -756,6 +796,18 @@ const handleApplyCouponCode = async () => {
                 </div>
 
                 <div className="sidebar-actions">
+                  {selectedCoupon && orderData?.couponDiscount > 0 && (
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 10px", background: "#f0fdf4", border: "1px dashed #16a34a", borderRadius: "4px", marginBottom: "8px", fontSize: "13px" }}>
+                      <span style={{ color: "#16a34a", fontWeight: "600" }}>✓ Coupon Applied (-₹{orderData.couponDiscount})</span>
+                      <button
+                        type="button"
+                        onClick={handleRemoveCoupon}
+                        style={{ background: "none", border: "none", color: "#dc2626", fontWeight: "600", fontSize: "12px", cursor: "pointer", textDecoration: "underline" }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  )}
                   <button
                     className="btn-outline-custom"
                     onClick={() => setCouponModal(true)}
@@ -763,9 +815,9 @@ const handleApplyCouponCode = async () => {
                     <span className="material-symbols-outlined icon-size">
                       sell
                     </span>
-                    Apply Coupon
+                    {selectedCoupon ? "Change Coupon" : "Apply Coupon"}
                   </button>
-                  <button className="btn-solid-custom" onClick={()=>setOrderConfirmModal(true)}>Place Order</button>
+                  <button className="btn-solid-custom" onClick={() => setOrderConfirmModal(true)}>Place Order</button>
                 </div>
               </div>
 
@@ -790,107 +842,107 @@ const handleApplyCouponCode = async () => {
       </main>
 
       {/* Dynamic Coupons List Modal */}
-{couponModal && (
-<div className="coupon-modal-overlay">
-<div className="coupon-modal">
-<div className="coupon-modal-header">
-<div>
-<h2>AVAILABLE COUPONS</h2>
-<p>Apply an available coupon and save more on your order.</p>
-</div>
-<button
-className="coupon-close-btn"
-onClick={() => setCouponModal(false)}
->
-✕
-</button>
-</div>
+      {couponModal && (
+        <div className="coupon-modal-overlay">
+          <div className="coupon-modal">
+            <div className="coupon-modal-header">
+              <div>
+                <h2>AVAILABLE COUPONS</h2>
+                <p>Apply an available coupon and save more on your order.</p>
+              </div>
+              <button
+                className="coupon-close-btn"
+                onClick={() => setCouponModal(false)}
+              >
+                ✕
+              </button>
+            </div>
 
-<div className="coupon-input-box">
-<span className="coupon-input-label">HAVE A CODE?</span>
-<div className="coupon-input-wrapper">
-<input
-type="text"
-placeholder="ENTER CODE"
-value={couponCodeInput}
-onChange={(e) => setCouponCodeInput(e.target.value)}
-/>
-{/* മാന്വൽ അപ്ലൈ ബട്ടണിൽ onClick ഫങ്ക്ഷൻ കണക്ട് ചെയ്തു */}
-<button className="coupon-apply-btn" onClick={handleApplyCouponCode}>APPLY</button>
-</div>
-</div>
+            <div className="coupon-input-box">
+              <span className="coupon-input-label">HAVE A CODE?</span>
+              <div className="coupon-input-wrapper">
+                <input
+                  type="text"
+                  placeholder="ENTER CODE"
+                  value={couponCodeInput}
+                  onChange={(e) => setCouponCodeInput(e.target.value)}
+                />
+                {/* മാന്വൽ അപ്ലൈ ബട്ടണിൽ onClick ഫങ്ക്ഷൻ കണക്ട് ചെയ്തു */}
+                <button className="coupon-apply-btn" onClick={handleApplyCouponCode}>APPLY</button>
+              </div>
+            </div>
 
-<div className="coupon-list">
-{coupons?.map((coupon) => {
-const isSelected = selectedCoupon === coupon._id || selectedCoupon === coupon.code;
+            <div className="coupon-list">
+              {coupons?.map((coupon) => {
+                const isSelected = selectedCoupon === coupon._id || selectedCoupon === coupon.code;
 
-return (
-<div
-className={`coupon-card ${isSelected ? "applied" : ""}`}
-key={coupon._id || coupon.code}
->
-{isSelected && (
-<div className="coupon-card-top-row">
-<span className="coupon-applied-tag">✓ APPLIED</span>
-<button
-className="coupon-action-text"
-onClick={() => {
-setSelectedCoupon("");
-getCheckout();
-}}
->
-REMOVE
-</button>
-</div>
-)}
+                return (
+                  <div
+                    className={`coupon-card ${isSelected ? "applied" : ""}`}
+                    key={coupon._id || coupon.code}
+                  >
+                    {isSelected && (
+                      <div className="coupon-card-top-row">
+                        <span className="coupon-applied-tag">✓ APPLIED</span>
+                        <button
+                          className="coupon-action-text"
+                          onClick={handleRemoveCoupon}
+                        >
+                          REMOVE
+                        </button>
+                      </div>
+                    )}
 
-{coupon.badge && !isSelected && (
-<span className="coupon-badge-timer">
-🕒 {coupon.badge}
-</span>
-)}
+                    {coupon.badge && !isSelected && (
+                      <span className="coupon-badge-timer">
+                        🕒 {coupon.badge}
+                      </span>
+                    )}
 
-<h4 className="coupon-code-title">{coupon.code}</h4>
-<p className="coupon-discount-desc">
-{coupon.discountValue || coupon.description}
-</p>
+                    <h4 className="coupon-code-title">{coupon.code}</h4>
+                    <p className="coupon-discount-desc">
+                      {coupon.discountType === "Percentage"
+                        ? `${coupon.discountValue}% OFF`
+                        : `₹${coupon.discountValue} FLAT OFF`}
+                    </p>
 
-{coupon.subText && (
-<p className="coupon-subtext">{coupon.subText}</p>
-)}
+                    {coupon.subText && (
+                      <p className="coupon-subtext">{coupon.subText}</p>
+                    )}
 
-<div className="coupon-card-footer">
-{coupon.minOrder && (
-<span className="coupon-limit">
-🛒 Min order ₹{coupon.minOrder}
-</span>
-)}
-{coupon.maxDiscount && (
-<span className="coupon-limit">
-🏷️ Max discount ₹{coupon.maxDiscount}
-</span>
-)}
+                    <div className="coupon-card-footer">
+                      {(coupon.minCart || coupon.minOrder) > 0 && (
+                        <span className="coupon-limit">
+                          🛒 Min order ₹{coupon.minCart || coupon.minOrder}
+                        </span>
+                      )}
+                      {coupon.maxDiscount > 0 && (
+                        <span className="coupon-limit">
+                          🏷️ Max discount ₹{coupon.maxDiscount}
+                        </span>
+                      )}
 
-{!isSelected && (
-<button
-className="coupon-card-apply-btn"
-onClick={() => {
-setSelectedCoupon(coupon._id);
-setCouponModal(false);
-toast.success("Coupon applied!");
-}}
->
-APPLY
-</button>
-)}
-</div>
-</div>
-);
-})}
-</div>
-</div>
-</div>
-)}
+                      {!isSelected && (
+                        <button
+                          className="coupon-card-apply-btn"
+                          onClick={async () => {
+                            setSelectedCoupon(coupon._id);
+                            setCouponModal(false);
+                            toast.success("Coupon applied!");
+                            await getCheckout(coupon._id);
+                          }}
+                        >
+                          APPLY
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ADD MODAL */}
       {showAddModal && (
@@ -1024,42 +1076,42 @@ APPLY
 
 
 
-       {/* DELETE MODAL */}
-        {orderConfirmModal&& (
-          <div className="modal-overlay">
-            <div className="delete-modal">
-              <div className="delete-icon">!</div>
-              <h2>PLACE ORDER?</h2>
-              <p>Are you sure you want to purchase this order?</p>
+      {/* DELETE MODAL */}
+      {orderConfirmModal && (
+        <div className="modal-overlay">
+          <div className="delete-modal">
+            <div className="delete-icon">!</div>
+            <h2>PLACE ORDER?</h2>
+            <p>Are you sure you want to purchase this order?</p>
 
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="cancel-btn"
-                  onClick={() => {
-                    setOrderConfirmModal(false)
-                  }}
-                >
-                  CANCEL
-                </button>
-                <button
-                  type="button"
-                  className="delete-confirm-btn"
-                  onClick={placeOrder}
-                >
-                  Confirm
-                </button>
-              </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="cancel-btn"
+                onClick={() => {
+                  setOrderConfirmModal(false)
+                }}
+              >
+                CANCEL
+              </button>
+              <button
+                type="button"
+                className="delete-confirm-btn"
+                onClick={placeOrder}
+              >
+                Confirm
+              </button>
             </div>
           </div>
-        )}
+        </div>
+      )}
 
 
-<ToastContainer
-  position="top-right"
-  autoClose={3000}
-  theme="colored"
-/>
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        theme="colored"
+      />
 
 
       <UserFooter />
