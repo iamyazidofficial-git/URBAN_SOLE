@@ -37,7 +37,7 @@ const Profile = () => {
         return console.log("token not found")
       }
       const response = await axiosInstance.get(
-        "http://localhost:2222/user/profile/getUser",
+        "/user/profile/getUser",
       )
    
       const findUser = response?.data.data
@@ -74,7 +74,7 @@ const Profile = () => {
       const token = localStorage.getItem("token")
 
       const response = await axiosInstance.put(
-        "http://localhost:2222/user/profile/editUser",
+        "/user/profile/editUser",
         {
           name: data.name,
           email: data.email,
@@ -191,7 +191,7 @@ const Profile = () => {
   const changeEmail=async ()=>{
     setIsLoading(true)
     try{
-      await axiosInstance.post("http://localhost:2222/user/generateOTP", {
+      await axiosInstance.post("/user/generateOTP", {
       email: user.email
     })
 

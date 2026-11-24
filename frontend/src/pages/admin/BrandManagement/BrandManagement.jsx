@@ -56,7 +56,7 @@ const BrandManagement = () => {
     setNewError("");
     try {
       const response = await axiosInstance.post(
-        "http://localhost:2222/admin/brand/addBrand",
+        "/admin/brand/addBrand",
         {
           name: data?.name,
           description: data?.description,
@@ -79,7 +79,7 @@ const BrandManagement = () => {
   const editBrand = async (data) => {
     try {
       const response = await axiosInstance.put(
-        `http://localhost:2222/admin/brand/editBrand/${data._id}`,
+        `/admin/brand/editBrand/${data._id}`,
         data,
       );
       if (response.data?.success === true) {
@@ -95,7 +95,7 @@ const BrandManagement = () => {
   const getBrands = async () => {
     try {
       const response = await axiosInstance.get(
-        `http://localhost:2222/admin/brand/getBrand/?page=${page}&limit=5&search=${search}`,
+        `/admin/brand/getBrand/?page=${page}&limit=5&search=${search}`,
       );
 
       if (response.data?.success === true) {
@@ -112,7 +112,7 @@ const BrandManagement = () => {
     setNewError("");
     try {
       const response = await axiosInstance.patch(
-        `http://localhost:2222/admin/brand/deleteBrand/${deleteId}`
+        `/admin/brand/deleteBrand/${deleteId}`
       );
       if (response.data?.success === true) {
         getBrands();
@@ -131,7 +131,7 @@ const BrandManagement = () => {
   const toggleStatus = async (id) => {
     try {
       const response = await axiosInstance.patch(
-        `http://localhost:2222/admin/brand/toggleStatus/${id}`
+        `/admin/brand/toggleStatus/${id}`
       );
       if (response.data?.success === true) {
         getBrands();

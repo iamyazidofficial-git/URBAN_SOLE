@@ -26,7 +26,7 @@ const ChangeEmail = () => {
   const onSubmit = async (data) => {
     try {
       const response = await axiosInstance.put(
-        "http://localhost:2222/user/profile/editUser",
+        "/user/profile/editUser",
         {
           email: currentEmail,
           newEmail: data.newEmail,
@@ -35,7 +35,7 @@ const ChangeEmail = () => {
       )
 
       if (response.data.success === true) {
-        await axios.post("http://localhost:2222/user/generateOTP", {
+        await axiosInstance.post("/user/generateOTP", {
           email: data.newEmail,
         })
 

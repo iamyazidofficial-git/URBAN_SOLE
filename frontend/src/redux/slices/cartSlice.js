@@ -23,7 +23,7 @@ export const getCart = createAsyncThunk(
   "cart/getCart",
   async (_, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.get("http://localhost:2222/user/cart/getCart")
+      const response = await axiosInstance.get("/user/cart/getCart")
       return response?.data?.data || response?.data
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message)
@@ -35,7 +35,7 @@ export const removeFromCart = createAsyncThunk(
   "cart/removeFromCart",
   async ({ _id }, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.delete(`http://localhost:2222/user/cart/deleteItem/${_id}`)
+      const response = await axiosInstance.delete(`/user/cart/deleteItem/${_id}`)
       return response?.data?.data || response?.data
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message)
@@ -47,7 +47,7 @@ export const increment = createAsyncThunk(
   "cart/increment",
   async ({ _id }, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.patch(`http://localhost:2222/user/cart/increaseQuantity/${_id}`)
+      const response = await axiosInstance.patch(`/user/cart/increaseQuantity/${_id}`)
       return response?.data?.data || response?.data
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);
@@ -59,7 +59,7 @@ export const decrement = createAsyncThunk(
   "cart/decrement",
   async ({ _id }, { rejectWithValue }) => {
     try {
-      const response = await axiosInstance.patch(`http://localhost:2222/user/cart/decreaseQuantity/${_id}`);
+      const response = await axiosInstance.patch(`/user/cart/decreaseQuantity/${_id}`);
       return response?.data?.data || response?.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || error.message);

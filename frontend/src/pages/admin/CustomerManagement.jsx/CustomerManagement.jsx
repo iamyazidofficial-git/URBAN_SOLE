@@ -24,7 +24,7 @@ const CustomerManagement = () => {
       setLoading(true);
 
       const response = await axiosInstance.get(
-        "http://localhost:2222/admin/customer/users",
+        "/admin/customer/users",
         {
           params: {
             page: page,
@@ -114,7 +114,7 @@ const CustomerManagement = () => {
       setUpdatingStatus(true)
 
       const response = await axiosInstance.patch(
-        `http://localhost:2222/admin/customer/toggle/${selectedCustomer.id}`,
+        `/admin/customer/toggle/${selectedCustomer.id}`,
         {}
       )
 

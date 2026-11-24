@@ -30,7 +30,7 @@ const ResetPassword = () => {
       }
 
       const response = await axiosInstance.post(
-        "http://localhost:2222/user/resetPassword",
+        "/user/resetPassword",
         { email: email, password: password },
       )
 

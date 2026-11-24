@@ -32,13 +32,13 @@ const Login = () => {
       }
 
       const response = await axiosInstance.post(
-        "http://localhost:2222/user/login",
+        "/user/login",
         loginData,
       )
 
       if (response.data.success == true) {
         if (response.data.isVerified == false) {
-          await axiosInstance.post("http://localhost:2222/user/generateOTP", {
+          await axiosInstance.post("/user/generateOTP", {
             email: data.email,
           })
           return navigate("/user/verifyOTP", {state: { email: data.email, type: "signIn" },
@@ -59,7 +59,7 @@ const Login = () => {
 
     try {
       const response = await axiosInstance.post(
-        "http://localhost:2222/user/google",
+        "/user/google",
         {
           credential: credentialResponse.credential,
         },
