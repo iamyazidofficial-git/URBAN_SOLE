@@ -10,7 +10,7 @@ import Login from "./pages/user/Login/Login"
 import VerifyOTP from "./pages/user/VerifyOTP/VerifyOTP"
 import Profile from "./pages/user/Profile/Profile"
 import ChangeEmail from "./pages/user/changeEmail/changeEmail"
-import ChangePassword from "./pages/user/changePassword/changePassword"
+import ChangePassword from "./pages/user/ChangePassword/ChangePassword";
 import Adress from "./pages/user/Address/Address"
 import ForgottPassword from "./pages/user/ForgottPassword/ForgottPassword"
 import ResetPassword from "./pages/user/ResetPassword/ResetPassword"
