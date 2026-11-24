@@ -3,34 +3,14 @@ import { toast } from "react-toastify"
 import { STATUS_CODES } from "../constants/statusCodes"
 
 const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:2222",
+  baseURL: "http://localhost:2222",
 })
-
-let isRedirectingToLogin = false
-
-const clearAuthAndRedirect = (toastId, message, delayMs) => {
-  localStorage.removeItem("token")
-  localStorage.removeItem("user")
-
-  if (!toast.isActive(toastId)) {
-    toast.error(message, {
-      toastId,
-      autoClose: delayMs,
-    })
-  }
-
-  if (!isRedirectingToLogin && window.location.pathname !== "/user/login") {
-    isRedirectingToLogin = true
-    setTimeout(() => {
-      isRedirectingToLogin = false
-      window.location.replace("/user/login")
-    }, delayMs)
-  }
-}
 
 axiosInstance.interceptors.request.use(
   (config) => {
+    console.log("AXIOS REQUEST:", config.method, config.url)
     const token = localStorage.getItem("token")
+    console.log("AXIOS TOKEN:", token)
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
@@ -38,42 +18,76 @@ axiosInstance.interceptors.request.use(
 
     return config
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    return Promise.reject(error)
+  }
 )
 
 axiosInstance.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    const status = error.response?.status
-    const errorMessage = (error.response?.data?.message || "").toLowerCase()
-    const hadToken = Boolean(localStorage.getItem("token"))
+  (response) => {
+    return response
+  },
 
-    // 1. User blocked by admin (403)
+  (error) => {
+    console.log("AXIOS INTERCEPTOR")
+    console.log("STATUS:", error.response?.status)
+    console.log("MESSAGE:", error.response?.data?.message)
+
+    const errorMessage = error.response?.data?.message || "";
+
+    // 1. Check if user is blocked
     if (
-      status === STATUS_CODES.FORBIDDEN &&
-      errorMessage === "your account has been blocked"
+      error.response?.status === STATUS_CODES.FORBIDDEN &&
+      errorMessage === "Your account has been blocked"
     ) {
-      clearAuthAndRedirect(
-        "blocked-user",
-        "You have been blocked. Please contact admin.",
-        5000
-      )
+      console.log("BLOCKED USER DETECTED")
+
+      localStorage.removeItem("token")
+      localStorage.removeItem("user") // യൂസർ ഡാറ്റ ഉണ്ടെങ്കിൽ അതും കളയാം
+
+      if (!toast.isActive("blocked-user")) {
+        toast.error(
+          "You have been blocked. Please contact admin.",
+          {
+            toastId: "blocked-user",
+            autoClose: 5000
+          }
+        )
+      }
+
+      setTimeout(() => {
+        window.location.replace("/user/login")
+      }, 5000)
+
       return Promise.reject(error)
     }
 
-    // 2. Token expired or unauthorized (401)
-    const isAuthFailure =
-      status === STATUS_CODES.UNAUTHORIZED ||
-      errorMessage.includes("token expired") ||
-      errorMessage.includes("jwt expired") ||
-      errorMessage.includes("unauthorized")
+    // 2. Check if Token is Expired or Unauthorized (401)
+    if (
+      error.response?.status === STATUS_CODES.UNAUTHORIZED || 
+      errorMessage.toLowerCase().includes("token expired") ||
+      errorMessage.toLowerCase().includes("jwt expired") ||
+      errorMessage.toLowerCase().includes("unauthorized")
+    ) {
+      console.log("TOKEN EXPIRED OR UNAUTHORIZED DETECTED")
 
-    if (isAuthFailure && hadToken) {
-      clearAuthAndRedirect(
-        "token-expired",
-        "Session expired. Please log in again.",
-        4000
-      )
+      localStorage.removeItem("token")
+      localStorage.removeItem("user")
+
+      if (!toast.isActive("token-expired")) {
+        toast.error(
+          "Session expired. Please log in again.",
+          {
+            toastId: "token-expired",
+            autoClose: 4000
+          }
+        )
+      }
+
+      setTimeout(() => {
+        window.location.replace("/user/login")
+      }, 4000)
+
       return Promise.reject(error)
     }
 
