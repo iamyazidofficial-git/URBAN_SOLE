@@ -30,6 +30,7 @@ import Referrals from "./pages/user/Referrals/Referrals"
 /****************************ADMIN SIDE********************************/
 
 import AdminProtectedRoute from "./ProtectedRoute/AdminProtectedRoute"
+import UserProtectedRoute from "./ProtectedRoute/UserProtectedRoute"
 import AdminLogin from "./pages/admin/AdminLogin/AdminLogin"
 import CustomerManagement from "./pages/admin/CustomerManagement.jsx/CustomerManagement"
 import CategoryManagement from "./pages/admin/CategoryManagement/CategoryManagement";
@@ -50,25 +51,25 @@ function App() {
       <Route path="/user/signup" element={<Signup/>}></Route>
       <Route path="/user/verifyOTP" element={<VerifyOTP/>}/>
       <Route path="/user/home" element={<Home/>}></Route>
-      <Route path="/user/profile" element={<Profile/>}/>
-      <Route path="/user/changeEmail" element={<ChangeEmail/>}/>
-      <Route path="/user/changePassword" element={<ChangePassword/>}/>
-      <Route path="/user/address" element={<Adress/>}/>
+      <Route path="/user/profile" element={<UserProtectedRoute><Profile/></UserProtectedRoute>}/>
+      <Route path="/user/changeEmail" element={<UserProtectedRoute><ChangeEmail/></UserProtectedRoute>}/>
+      <Route path="/user/changePassword" element={<UserProtectedRoute><ChangePassword/></UserProtectedRoute>}/>
+      <Route path="/user/address" element={<UserProtectedRoute><Adress/></UserProtectedRoute>}/>
       <Route path="/user/forgottPassword" element={<ForgottPassword/>}/>
       <Route path="/user/resetPassword" element={<ResetPassword/>}></Route>
       <Route path="/user/men" element={<Men/>}/>
       <Route path="/user/women" element={<Women/>}/>
       <Route path="/user/productDetails" element={<ProductDetails/>}/>
-      <Route path="/user/cart" element={<Cart />} />
-      <Route path="/user/wishlist" element={<Wishlist />} />    
-      <Route path="/user/checkout" element={<Checkout/>}/>
-      <Route path="/user/checkout/orderSuccess" element={<OrderSuccess/>}/>
-      <Route path="/user/orders" element={<Orders/>}/>
-      <Route path="/user/trackOrder" element={<TrackOrder/>}/>
-      <Route path="/user/Wallet" element={<Wallet/>}/>
-      <Route path="/user/paymentFailed" element={<PaymentFailed/>}/>
+      <Route path="/user/cart" element={<UserProtectedRoute><Cart /></UserProtectedRoute>} />
+      <Route path="/user/wishlist" element={<UserProtectedRoute><Wishlist /></UserProtectedRoute>} />    
+      <Route path="/user/checkout" element={<UserProtectedRoute><Checkout/></UserProtectedRoute>}/>
+      <Route path="/user/checkout/orderSuccess" element={<UserProtectedRoute><OrderSuccess/></UserProtectedRoute>}/>
+      <Route path="/user/orders" element={<UserProtectedRoute><Orders/></UserProtectedRoute>}/>
+      <Route path="/user/trackOrder" element={<UserProtectedRoute><TrackOrder/></UserProtectedRoute>}/>
+      <Route path="/user/Wallet" element={<UserProtectedRoute><Wallet/></UserProtectedRoute>}/>
+      <Route path="/user/paymentFailed" element={<UserProtectedRoute><PaymentFailed/></UserProtectedRoute>}/>
       <Route path="/user/reviews" element={<Reviews/>}/>
-      <Route path="/user/referrals" element={<Referrals/>}/>
+      <Route path="/user/referrals" element={<UserProtectedRoute><Referrals/></UserProtectedRoute>}/>
       </Routes>
   
 

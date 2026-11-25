@@ -8,6 +8,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import Loader from '../../../partials/Loader/Loader';
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { optimizeCloudinaryUrl } from '../../../utils/imageOptimizer';
 
 const Cart = () => {
   const navigate = useNavigate();
@@ -25,31 +26,46 @@ const Cart = () => {
   const cartItems = Array.isArray(cart?.items) ? cart.items : [];  
 
   const [itemToDelete, setItemToDelete] = useState(null);
+  const [updatingItemIds, setUpdatingItemIds] = useState({});
 
   useEffect(() => {
     dispatch(getCart());
   }, [dispatch]);
 
   const handleIncrease = async(item) => {
+    if (updatingItemIds[item._id]) return;
     if (item.quantity >= 5) {
       toast.error("Maximum quantity limit is 5");
       return;
     }
 
+    setUpdatingItemIds(prev => ({ ...prev, [item._id]: true }));
     try{
-      await dispatch(increment({ _id: item._id })).unwrap()
-
+      await dispatch(increment({ _id: item._id })).unwrap();
     }
     catch(error){
-      console.log(error)
-       toast.error(error?.message||"Something went wrong")
+      console.log(error);
+      const msg = error?.message || error?.data?.message || (typeof error === 'string' ? error : "Something went wrong");
+      toast.error(msg);
+    } finally {
+      setUpdatingItemIds(prev => ({ ...prev, [item._id]: false }));
     }
-
   };
 
-  const handleDecrease = (item) => {
+  const handleDecrease = async (item) => {
+    if (updatingItemIds[item._id]) return;
     if (item.quantity <= 1) return;
-    dispatch(decrement({ _id: item._id }));
+
+    setUpdatingItemIds(prev => ({ ...prev, [item._id]: true }));
+    try {
+      await dispatch(decrement({ _id: item._id })).unwrap();
+    } catch(error) {
+      console.log(error);
+      const msg = error?.message || error?.data?.message || (typeof error === 'string' ? error : "Something went wrong");
+      toast.error(msg);
+    } finally {
+      setUpdatingItemIds(prev => ({ ...prev, [item._id]: false }));
+    }
   };
 
   const handleOpenRemoveModal = (item) => {
@@ -101,19 +117,26 @@ const Cart = () => {
   };
 
   const buy = () => {
-    const orderData = cartItems.map((item) => ({
-      product: item.product?._id || item.product,
-      _id: item.product?._id || item.product,
-      name: item.product?.name || item.name || "",
-      productName: item.product?.name || item.name || "",
-      brand: item.product?.brand?.name || item.brand || "",
-      image: item.img || item.image || item.product?.img,
-      img: item.img || item.image || item.product?.img,
-      quantity: item.quantity,
-      size: item.size,
-      colour: item.colour,
-      price: item.price
-    }));
+    const orderData = cartItems.map((item) => {
+      const prod = item.product && typeof item.product === 'object' ? item.product : {};
+      const price = Number(prod.price || item.price || 0);
+      const offer = Number(prod.offer !== undefined ? prod.offer : (item.offer || 0));
+
+      return {
+        product: prod._id || item.product,
+        _id: prod._id || item.product,
+        name: prod.name || item.name || "",
+        productName: prod.name || item.name || "",
+        brand: prod.brand?.name || (typeof prod.brand === 'string' ? prod.brand : item.brand) || "",
+        image: item.img || item.image || prod.img,
+        img: item.img || item.image || prod.img,
+        quantity: item.quantity,
+        size: item.size,
+        colour: item.colour,
+        price: price,
+        offer: offer
+      };
+    });
 
     orderData.type = "cart";
     navigate("/user/checkout", {
@@ -161,7 +184,12 @@ const Cart = () => {
                       style={{ cursor: "pointer" }}
                       title="View Product Details"
                     >
-                      <img src={item.img || item.product?.img} alt={item.product?.name || item.name} />
+                      <img 
+                        src={optimizeCloudinaryUrl(item.img || item.product?.img, 200)} 
+                        alt={item.product?.name || item.name} 
+                        loading="lazy" 
+                        decoding="async" 
+                      />
                     </div>
 
                     <div className="cart-item-details">
@@ -183,11 +211,25 @@ const Cart = () => {
 
                       <div className="cart-item-bottom">
                         <div className="cart-quantity-box">
-                          <button onClick={() => handleDecrease(item)}>
+                          <button 
+                            onClick={() => handleDecrease(item)} 
+                            disabled={item.quantity <= 1 || !!updatingItemIds[item._id]}
+                            style={{ 
+                              opacity: (item.quantity <= 1 || updatingItemIds[item._id]) ? 0.5 : 1, 
+                              cursor: (item.quantity <= 1 || updatingItemIds[item._id]) ? 'not-allowed' : 'pointer' 
+                            }}
+                          >
                             <span className="material-symbols-outlined">remove</span>
                           </button>
                           <span>{item.quantity}</span>
-                          <button onClick={() => handleIncrease(item)}>
+                          <button 
+                            onClick={() => handleIncrease(item)} 
+                            disabled={item.quantity >= 5 || !!updatingItemIds[item._id]}
+                            style={{ 
+                              opacity: (item.quantity >= 5 || updatingItemIds[item._id]) ? 0.5 : 1, 
+                              cursor: (item.quantity >= 5 || updatingItemIds[item._id]) ? 'not-allowed' : 'pointer' 
+                            }}
+                          >
                             <span className="material-symbols-outlined">add</span>
                           </button>
                         </div>

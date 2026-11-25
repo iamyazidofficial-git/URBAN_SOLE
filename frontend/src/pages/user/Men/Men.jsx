@@ -12,11 +12,13 @@ import { addToWishlist, removeFromWishlist, fetchWishlist } from "../../../redux
 import { toast, ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import Loader from '../../../partials/Loader/Loader'
+import { optimizeCloudinaryUrl } from '../../../utils/imageOptimizer'
 
 const Men = () => {
   const dispatch = useDispatch()
   const [products, setProducts] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [isFilter, setIsFilter] = useState(false)
   const[loading,setLoading]=useState(false)
   const [activeFilters, setActiveFilters] = useState({
@@ -40,13 +42,20 @@ const Men = () => {
   const wishlistItems = wishlistState?.wishlist?.products || []
   const cartItems = useSelector((state) => state.cart?.items || [])
 
- useEffect(() => {
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery)
+    }, 350)
+    return () => clearTimeout(handler)
+  }, [searchQuery])
+
+  useEffect(() => {
     const token = localStorage.getItem("token")
 
-    if (token) {
+    if (token && (!wishlistState?.wishlist?.products || wishlistItems.length === 0)) {
         dispatch(fetchWishlist())
     }
-}, [dispatch])
+  }, [dispatch])
 
   const isProductInWishlist = (productId) => {
     return wishlistItems.some(item => (typeof item === 'string' ? item : item._id) === productId)
@@ -59,7 +68,7 @@ const Men = () => {
     setCurrentPage(1) 
   }
 
-  const getProducts = async () => {
+  const getProducts = async (signal) => {
     setLoading(true)
     try {
       const categoryQuery = activeFilters.categories.length > 0 ? activeFilters.categories.join(',') : ''
@@ -68,9 +77,9 @@ const Men = () => {
       const priceQuery = activeFilters.price || ''
       const colorQuery = activeFilters.color || ''
 
-      const url = `/user/product/getProducts?gender=Men&category=${encodeURIComponent(categoryQuery)}&brand=${encodeURIComponent(brandQuery)}&price=${encodeURIComponent(priceQuery)}&color=${encodeURIComponent(colorQuery)}&size=${encodeURIComponent(sizeQuery)}&search=${encodeURIComponent(searchQuery)}&sort=${encodeURIComponent(sortBy)}&page=${currentPage}&limit=8`
+      const url = `/user/product/getProducts?gender=Men&category=${encodeURIComponent(categoryQuery)}&brand=${encodeURIComponent(brandQuery)}&price=${encodeURIComponent(priceQuery)}&color=${encodeURIComponent(colorQuery)}&size=${encodeURIComponent(sizeQuery)}&search=${encodeURIComponent(debouncedSearch)}&sort=${encodeURIComponent(sortBy)}&page=${currentPage}&limit=8`
       
-      const response = await axiosInstance.get(url)
+      const response = await axiosInstance.get(url, { signal })
       if (response.data?.success === true) {
         const fetchedProducts = response.data?.data || []
         const filteredProducts = fetchedProducts.filter(p => {
@@ -82,19 +91,36 @@ const Men = () => {
         setTotalPages(response.data?.totalPages || 1)
       }
     } catch (error) {
+      if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED' || axiosInstance.isCancel?.(error)) {
+        return
+      }
       console.log(error.response?.data?.message || "Something went wrong")
-    }finally{
-      setLoading(false)
+    } finally {
+      if (!signal?.aborted) {
+        setLoading(false)
+      }
     }
   }
 
   useEffect(() => {
-    getProducts()
-  }, [activeFilters, searchQuery, sortBy, currentPage])
+    const controller = new AbortController()
+    getProducts(controller.signal)
+    return () => {
+      controller.abort()
+    }
+  }, [activeFilters, debouncedSearch, sortBy, currentPage])
 
   // ADD TO CART CLICK HANDLER
   const handleOpenCartModal = (e, product) => {
     e.stopPropagation() 
+    const token = localStorage.getItem("token")
+    if (!token) {
+      if (!toast.isActive("session-expired")) {
+        toast.error("Session expired Please login", { toastId: "session-expired", autoClose: 3000 })
+      }
+      navigate("/user/login")
+      return
+    }
     setSelectedProductForCart(product)
     setSelectedVariant(null)
     setSelectedSize(null)
@@ -166,6 +192,7 @@ const handleConfirmAddToCart = async () => {
     console.error("Failed to add to cart:", error)
     toast.error(error?.message || "Failed to add product to cart.")
   } finally {
+    handleCancelCartModal()
     setSelectedProductForCart(null)
     setSelectedVariant(null)
     setSelectedSize(null)
@@ -181,6 +208,14 @@ const handleConfirmAddToCart = async () => {
 //-----------------CONFIRM ADD TO WISHLIST--------------------
 
   const handleAddToWishlist = async (product) => {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      if (!toast.isActive("session-expired")) {
+        toast.error("Session expired Please login", { toastId: "session-expired", autoClose: 3000 })
+      }
+      navigate("/user/login")
+      return
+    }
     console.log("Cart",cartItems)
     const isInCart = cartItems.some(item => {
       const prodId = typeof item.product === 'object' ? item.product?._id : item.product;
@@ -310,7 +345,13 @@ const handleConfirmAddToCart = async () => {
                 key={product._id || product.id}
               >
                 <div className="ms-image-container">
-                  <img src={firstVariantImage} alt={product.name} className="ms-product-img" />
+                  <img 
+                    src={optimizeCloudinaryUrl(firstVariantImage, 500)} 
+                    alt={product.name} 
+                    className="ms-product-img" 
+                    loading="lazy"
+                    decoding="async"
+                  />
                   <button 
                     className={`ms-fav-btn ${inWishlist ? 'active' : ''}`} 
                     onClick={(e) => {

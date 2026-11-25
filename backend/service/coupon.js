@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Coupon = require("../models/coupon");
 
 const addCouponService = async (couponData) => {
@@ -370,14 +371,43 @@ const toggleCouponStatusService = async (couponId) => {
   };
 };
 
-const getCouponService = async (role = "user", totalAmount) => {
+const getCouponService = async (role = "user", totalAmount, userId = null) => {
+  const currentDate = new Date();
+  // Auto-delete expired or limit-reached coupons
+  await Coupon.deleteMany({
+    $or: [
+      { expiryDate: { $lt: currentDate } },
+      { $expr: { $gte: ["$usedCount", "$usageCount"] } },
+    ],
+  });
+
   if (role === "user") {
-    const currentDate = new Date();
-    const coupons = await Coupon.find({
+    const filter = {
       status: "Active",
       expiryDate: { $gte: currentDate },
       minCart: { $lte: totalAmount || 0 },
-    });
+    };
+
+    if (userId) {
+      const userStr = userId.toString();
+      const excludedIds = [userStr];
+      if (mongoose.Types.ObjectId.isValid(userStr)) {
+        try {
+          excludedIds.push(new mongoose.Types.ObjectId(userStr));
+        } catch (e) {}
+      }
+      filter.usedBy = { $nin: excludedIds };
+    }
+
+    let coupons = await Coupon.find(filter).lean();
+
+    if (userId) {
+      const userStr = userId.toString();
+      coupons = (coupons || []).filter(c => 
+        !c.usedBy || !c.usedBy.some(u => u?.toString() === userStr)
+      );
+    }
+
     return coupons || [];
   } else {
     const coupons = await Coupon.find().sort({ createdAt: -1 });

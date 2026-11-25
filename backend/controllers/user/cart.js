@@ -198,7 +198,7 @@ try {
       { path: "category", select: "name" },
       { path: "brand", select: "name" }
     ]
-  });
+  }).lean();
 
   // If cart doesn't exist yet, return an empty cart structure gracefully
   if (!existingCart) {
@@ -209,36 +209,32 @@ try {
     });
   }
 
-  // Filter out inactive, deleted, or unlisted products
-  const cartProductIds = existingCart.items.map(item => item.product?._id || item.product);
+  // If cart has items, filter out inactive, deleted, or unlisted products
+  if (existingCart.items && existingCart.items.length > 0) {
+    const cartProductIds = existingCart.items.map(item => item.product?._id || item.product).filter(Boolean);
 
-  const activeProducts = await Product.find({
-    _id: { $in: cartProductIds },
-    isListed: true,
-    status: "Active"
-  }).select("_id");
+    const activeProducts = await Product.find({
+      _id: { $in: cartProductIds },
+      isListed: true,
+      status: "Active"
+    }).select("_id").lean();
 
-  const validProductIds = activeProducts.map(product => product._id.toString());
-  
-  const filteredItems = existingCart.items.filter(item => {
-    const prodId = item.product?._id ? item.product._id.toString() : item.product?.toString();
-    return validProductIds.includes(prodId);
-  });
-
-  // If items were filtered out, save the updated cart
-  if (filteredItems.length !== existingCart.items.length) {
-    existingCart.items = filteredItems;
-    await existingCart.save();
+    const validProductIds = activeProducts.map(product => product._id.toString());
     
-    // Re-populate after saving to ensure frontend gets full product details
-    existingCart = await Cart.findById(existingCart._id).populate({
-      path: "items.product",
-      select: "category name brand offer price isListed status vartiant description countryOfOrgin",
-      populate: [
-        { path: "category", select: "name" },
-        { path: "brand", select: "name" }
-      ]
+    const filteredItems = existingCart.items.filter(item => {
+      const prodId = item.product?._id ? item.product._id.toString() : item.product?.toString();
+      return validProductIds.includes(prodId);
     });
+
+    // If items were filtered out, save the updated cart
+    if (filteredItems.length !== existingCart.items.length) {
+      const cartDoc = await Cart.findById(existingCart._id);
+      if (cartDoc) {
+        cartDoc.items = filteredItems;
+        await cartDoc.save();
+      }
+      existingCart.items = filteredItems;
+    }
   }
   
 
@@ -266,18 +262,19 @@ const deleteItem = async (req, res) => {
         const token = authHeader.split(" ")[1];
         const user = jwt.verify(token, process.env.JWT_SECRET_KEY);
         const itemId = req.params._id;
-const updatedCart = await Cart.findOneAndUpdate(
+        const updatedCart = await Cart.findOneAndUpdate(
             { user: user._id },
             { $pull: { items: { _id: itemId } } },
             { new: true }
         ).populate({
             path: "items.product",
+            select: "category name brand offer price isListed status vartiant description countryOfOrgin",
             populate: [
                 { path: "category", select: "name" },
                 { path: "brand", select: "name" },
                 { path: "vartiant" }
             ]
-        })
+        }).lean();
 
         return res.status(200).json({
             success: true,
@@ -293,10 +290,6 @@ const updatedCart = await Cart.findOneAndUpdate(
     }
 };
 
-
-
-
-
 /*--------------------------------------INCREASE---------------------------------------*/
 
 const increaseQuantity = async (req, res) => {
@@ -306,32 +299,36 @@ const increaseQuantity = async (req, res) => {
         const user = jwt.verify(token, process.env.JWT_SECRET_KEY);
         const itemId = req.params._id;
 
-        let cart = await Cart.findOne({ user: user._id }).populate({
-            path: "items.product",
-            populate: { path: "vartiant" }
-        });
+        const cart = await Cart.findOne({ user: user._id });
         if (!cart) return res.status(404).json({ success: false, message: "Cart not found" });
 
         const item = cart.items.id(itemId);
         if (!item) return res.status(404).json({ success: false, message: "Item not found" });
 
-        const currentStock = getVariantStock(item.product, item.colour, item.size);
+        if (item.quantity >= 5) {
+            return res.status(400).json({ success: false, message: "Maximum quantity limit is 5" });
+        }
 
-        if (item.quantity >= currentStock || item.quantity >= 5) {
+        // Optimized stock validation: fetch and populate only the single target product and its variants
+        const product = await Product.findById(item.product).select("vartiant").populate("vartiant").lean();
+        const currentStock = getVariantStock(product, item.colour, item.size);
+
+        if (item.quantity >= currentStock) {
             return res.status(400).json({ success: false, message: `Cannot increase. Available stock limit is ${currentStock}` });
         }
 
         item.quantity += 1;
         await cart.save();
 
-const updatedCart = await Cart.findOne({ user: user._id }).populate({
+        const updatedCart = await Cart.findById(cart._id).populate({
             path: "items.product",
+            select: "category name brand offer price isListed status vartiant description countryOfOrgin",
             populate: [
                 { path: "category", select: "name" },
                 { path: "brand", select: "name" },
                 { path: "vartiant" }
             ]
-        });
+        }).lean();
 
         return res.status(200).json({
             success: true,
@@ -369,12 +366,13 @@ const decreaseQuantity = async (req, res) => {
             { new: true }
         ).populate({
             path: "items.product",
+            select: "category name brand offer price isListed status vartiant description countryOfOrgin",
             populate: [
                 { path: "category", select: "name" },
                 { path: "brand", select: "name" },
                 { path: "vartiant" }
             ]
-        });
+        }).lean();
 
         return res.status(200).json({
             success: true,

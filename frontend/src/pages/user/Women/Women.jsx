@@ -12,11 +12,13 @@ import { addToWishlist, removeFromWishlist, fetchWishlist } from "../../../redux
 import { toast, ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import Loader from '../../../partials/Loader/Loader'
+import { optimizeCloudinaryUrl } from '../../../utils/imageOptimizer'
 
 const Women = () => {
   const dispatch = useDispatch()
   const [products, setProducts] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [isFilter, setIsFilter] = useState(false)
   const [loading,setLoading]=useState(false)
   const [activeFilters, setActiveFilters] = useState({
@@ -39,13 +41,20 @@ const Women = () => {
   const wishlistItems = wishlistState?.wishlist?.products || []
   const cartItems = useSelector((state) => state.cart?.items || [])
 
- useEffect(() => {
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery)
+    }, 350)
+    return () => clearTimeout(handler)
+  }, [searchQuery])
+
+  useEffect(() => {
     const token = localStorage.getItem("token")
 
-    if (token) {
+    if (token && (!wishlistState?.wishlist?.products || wishlistItems.length === 0)) {
         dispatch(fetchWishlist())
     }
-}, [dispatch])
+  }, [dispatch])
 
   const isProductInWishlist = (productId) => {
     return wishlistItems.some(item => (typeof item === 'string' ? item : item._id) === productId)
@@ -58,36 +67,53 @@ const Women = () => {
     setCurrentPage(1) 
   }
 
-  const getProducts = async () => {
+  const getProducts = async (signal) => {
     setLoading(true)
     try {
-      const categoryQuery = activeFilters.categories.join(',') 
-      const brandQuery = activeFilters.brands.join(',')
-      const sizeQuery = activeFilters.sizes.join(',')
-      const priceQuery = activeFilters.price
-      const colorQuery = activeFilters.color
+      const categoryQuery = activeFilters.categories.length > 0 ? activeFilters.categories.join(',') : ''
+      const brandQuery = activeFilters.brands.length > 0 ? activeFilters.brands.join(',') : ''
+      const sizeQuery = activeFilters.sizes.length > 0 ? activeFilters.sizes.join(',') : ''
+      const priceQuery = activeFilters.price || ''
+      const colorQuery = activeFilters.color || ''
 
-      const url = `/user/product/getProducts?gender=Women&category=${categoryQuery}&brand=${brandQuery}&price=${priceQuery}&color=${colorQuery}&size=${sizeQuery}&search=${searchQuery}&sort=${sortBy}&page=${currentPage}&limit=8`      
-      const response = await axiosInstance.get(url)
+      const url = `/user/product/getProducts?gender=Women&category=${encodeURIComponent(categoryQuery)}&brand=${encodeURIComponent(brandQuery)}&price=${encodeURIComponent(priceQuery)}&color=${encodeURIComponent(colorQuery)}&size=${encodeURIComponent(sizeQuery)}&search=${encodeURIComponent(debouncedSearch)}&sort=${encodeURIComponent(sortBy)}&page=${currentPage}&limit=8`      
+      const response = await axiosInstance.get(url, { signal })
       
       if (response.data?.success === true) {
         setProducts(response.data?.data || [])
         setTotalPages(response.data?.totalPages || 1)
       }
     } catch (error) {
+      if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED' || axiosInstance.isCancel?.(error)) {
+        return
+      }
       console.log(error.response?.data?.message || "Something went wrong")
-    }finally{
-      setLoading(false)
+    } finally {
+      if (!signal?.aborted) {
+        setLoading(false)
+      }
     }
   }
 
   useEffect(() => {
-    getProducts()
-  }, [activeFilters, searchQuery, sortBy, currentPage])
+    const controller = new AbortController()
+    getProducts(controller.signal)
+    return () => {
+      controller.abort()
+    }
+  }, [activeFilters, debouncedSearch, sortBy, currentPage])
 
   // ADD TO CART MODAL OPEN
   const handleOpenCartModal = (e, product) => {
     e.stopPropagation() 
+    const token = localStorage.getItem("token")
+    if (!token) {
+      if (!toast.isActive("session-expired")) {
+        toast.error("Session expired Please login", { toastId: "session-expired", autoClose: 3000 })
+      }
+      navigate("/user/login")
+      return
+    }
     setSelectedProductForCart(product)
     const defaultVariant = product.vartiant?.[0] || null
     setSelectedVariant(defaultVariant)
@@ -172,6 +198,14 @@ const handleConfirmAddToCart = async () => {
   }
 
   const handleAddToWishlist = (product) => {
+    const token = localStorage.getItem("token")
+    if (!token) {
+      if (!toast.isActive("session-expired")) {
+        toast.error("Session expired Please login", { toastId: "session-expired", autoClose: 3000 })
+      }
+      navigate("/user/login")
+      return
+    }
     const isInCart = cartItems.some(item => (item.product?._id || item.product || item._id) === product._id)
     if (isInCart) {
       toast.info("This product (or its variant) is already in your cart!")
@@ -286,7 +320,13 @@ const handleConfirmAddToCart = async () => {
                   onClick={() => navigate("/user/productDetails", { state: { product: product } })}
                 >
                   <div className="ms-image-container">
-                    <img src={firstVariantImage} alt={product.name} className="ms-product-img" />
+                    <img 
+                      src={optimizeCloudinaryUrl(firstVariantImage, 500)} 
+                      alt={product.name} 
+                      className="ms-product-img" 
+                      loading="lazy"
+                      decoding="async"
+                    />
                     <div className="ms-badge">TRENDING</div>
                     <button 
                       className={`ms-fav-btn ${inWishlist ? 'active' : ''}`} 

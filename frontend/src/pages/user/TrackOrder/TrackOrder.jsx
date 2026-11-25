@@ -59,6 +59,401 @@ const TrackOrder = () => {
 
 
 
+  const canDownloadInvoice = () => {
+    if (!order || !order.payment) return false;
+    const method = String(order.payment.method || "").toUpperCase();
+    if (method === "RAZORPAY" || method === "WALLET") {
+      return true;
+    }
+    const allowedCodStatuses = [
+      "DELIVERED",
+      "RETURN_REQUESTED",
+      "RETURN_REJECTED",
+      "RETURN_APPROVED",
+      "RETURNED"
+    ];
+    return allowedCodStatuses.includes(order.orderStatus);
+  };
+
+  const handleDownloadInvoice = () => {
+    if (!order || !order.items || order.items.length === 0) {
+      toast.error("Order details are loading, please wait...");
+      return;
+    }
+
+    const orderDate = order?.createdAt
+      ? new Date(order.createdAt).toLocaleDateString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric"
+        })
+      : "N/A";
+
+    const invoiceDate = new Date().toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    });
+
+    const paymentMethodMap = {
+      CASHONDELIVERY: "Cash on Delivery (COD)",
+      RAZORPAY: "Razorpay (Online Payment)",
+      WALLET: "Urban Sole Wallet"
+    };
+    const paymentMethodName = paymentMethodMap[String(order?.payment?.method || "").toUpperCase()] || order?.payment?.method || "N/A";
+
+    const invoiceHtml = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Invoice - ${order.orderId || "Order"}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: #111;
+      background: #f4f4f4;
+      padding: 30px;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .invoice-card {
+      max-width: 820px;
+      margin: 0 auto;
+      border: 1px solid #ddd;
+      padding: 36px 40px;
+      background: #fff;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+    }
+    .invoice-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 2px solid #000;
+      padding-bottom: 20px;
+      margin-bottom: 24px;
+    }
+    .brand-title {
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #000;
+      margin-bottom: 4px;
+    }
+    .brand-subtitle {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #666;
+    }
+    .invoice-title-block { text-align: right; }
+    .invoice-title {
+      font-size: 20px;
+      font-weight: 800;
+      text-transform: uppercase;
+      color: #000;
+      letter-spacing: 1px;
+    }
+    .invoice-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      background: #000;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-top: 6px;
+      letter-spacing: 0.5px;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      margin-bottom: 24px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #eee;
+    }
+    .meta-block h4 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #777;
+      margin-bottom: 8px;
+    }
+    .meta-block p {
+      font-size: 12px;
+      color: #222;
+      margin-bottom: 2px;
+    }
+    .meta-block .bold {
+      font-weight: 700;
+      color: #000;
+      font-size: 13px;
+    }
+    .details-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+      font-size: 12px;
+    }
+    .details-row span:first-child { color: #666; }
+    .details-row span:last-child { font-weight: 600; color: #111; }
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 24px;
+    }
+    .table th {
+      background: #f7f7f7;
+      color: #333;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      font-weight: 700;
+      padding: 10px 12px;
+      text-align: left;
+      border-top: 1px solid #000;
+      border-bottom: 1px solid #000;
+    }
+    .table td {
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+      font-size: 12px;
+      vertical-align: middle;
+    }
+    .table .text-right { text-align: right; }
+    .table .text-center { text-align: center; }
+    .item-name { font-weight: 700; color: #000; }
+    .item-sub { font-size: 11px; color: #666; margin-top: 2px; }
+    .summary-container {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 28px;
+    }
+    .summary-box { width: 300px; }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+      font-size: 12px;
+      color: #444;
+    }
+    .summary-row.total {
+      border-top: 2px solid #000;
+      margin-top: 8px;
+      padding-top: 8px;
+      font-size: 15px;
+      font-weight: 800;
+      color: #000;
+    }
+    .footer-note {
+      border-top: 1px dashed #ccc;
+      padding-top: 16px;
+      text-align: center;
+      font-size: 11px;
+      color: #777;
+    }
+    .actions-bar {
+      max-width: 820px;
+      margin: 0 auto 16px auto;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+    .action-btn {
+      padding: 8px 18px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      border: 1px solid #000;
+      background: #000;
+      color: #fff;
+    }
+    .action-btn.secondary { background: #fff; color: #000; }
+    @media print {
+      body { background: #fff; padding: 0; }
+      .actions-bar { display: none !important; }
+      .invoice-card { border: none; padding: 0; box-shadow: none; max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="actions-bar">
+    <button class="action-btn secondary" onclick="window.close()">Close</button>
+    <button class="action-btn" onclick="window.print()">Print / Save PDF</button>
+  </div>
+
+  <div class="invoice-card">
+    <div class="invoice-header">
+      <div>
+        <div class="brand-title">URBAN SOLE</div>
+        <div class="brand-subtitle">Premium Footwear & Streetwear</div>
+      </div>
+      <div class="invoice-title-block">
+        <div class="invoice-title">Tax Invoice</div>
+        <div class="invoice-badge">${order.orderStatus || "ORDER"}</div>
+      </div>
+    </div>
+
+    <div class="meta-grid">
+      <div class="meta-block">
+        <h4>Sold By</h4>
+        <p class="bold">Urban Sole Retail Pvt. Ltd.</p>
+        <p>12/4 MG Road, Brigade Junction</p>
+        <p>Bengaluru, Karnataka - 560001</p>
+        <p>GSTIN: 29AABCU9603R1ZM</p>
+        <p>Email: support@urbansole.com</p>
+      </div>
+
+      <div class="meta-block">
+        <h4>Invoice Details</h4>
+        <div class="details-row">
+          <span>Invoice No:</span>
+          <span>INV-${order.orderId || order._id}</span>
+        </div>
+        <div class="details-row">
+          <span>Invoice Date:</span>
+          <span>${invoiceDate}</span>
+        </div>
+        <div class="details-row">
+          <span>Order ID:</span>
+          <span>${order.orderId || order._id}</span>
+        </div>
+        <div class="details-row">
+          <span>Order Date:</span>
+          <span>${orderDate}</span>
+        </div>
+        <div class="details-row">
+          <span>Payment Method:</span>
+          <span>${paymentMethodName}</span>
+        </div>
+        <div class="details-row">
+          <span>Payment Status:</span>
+          <span>${order.payment?.status || "N/A"}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="meta-grid" style="margin-top: -12px;">
+      <div class="meta-block">
+        <h4>Billed / Shipped To</h4>
+        <p class="bold">${order.shippingAddress?.fullName || order.customerSnapshot?.name || "Customer"}</p>
+        <p>${order.shippingAddress?.streetAddress || ""}${order.shippingAddress?.appartment ? ", " + order.shippingAddress.appartment : ""}</p>
+        <p>${order.shippingAddress?.city || ""}, ${order.shippingAddress?.state || ""} - ${order.shippingAddress?.postalCode || ""}</p>
+        <p>Phone: ${order.shippingAddress?.phoneNumber || "N/A"}</p>
+        <p>Email: ${order.customerSnapshot?.email || "N/A"}</p>
+      </div>
+
+      <div class="meta-block">
+        <h4>Order Status Info</h4>
+        <div class="details-row">
+          <span>Order Status:</span>
+          <span>${order.orderStatus}</span>
+        </div>
+        ${order.cancellation?.reason ? `
+        <div class="details-row">
+          <span>Cancellation Reason:</span>
+          <span style="color: #dc2626;">${order.cancellation.reason}</span>
+        </div>` : ""}
+        ${order.returnInfo?.reason ? `
+        <div class="details-row">
+          <span>Return Reason:</span>
+          <span>${order.returnInfo.reason}</span>
+        </div>` : ""}
+        ${order.returnInfo?.rejectionReason ? `
+        <div class="details-row">
+          <span>Admin Rejection Reason:</span>
+          <span style="color: #dc2626;">${order.returnInfo.rejectionReason}</span>
+        </div>` : ""}
+      </div>
+    </div>
+
+    <table class="table">
+      <thead>
+        <tr>
+          <th style="width: 40px;" class="text-center">#</th>
+          <th>Item Description</th>
+          <th class="text-center" style="width: 70px;">Size</th>
+          <th class="text-center" style="width: 60px;">Qty</th>
+          <th class="text-right" style="width: 100px;">Price</th>
+          <th class="text-right" style="width: 100px;">Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${(order.items || []).map((item, index) => `
+          <tr>
+            <td class="text-center">${index + 1}</td>
+            <td>
+              <div class="item-name">${item.productName || item.name || "Product"}</div>
+              <div class="item-sub">Colour: ${item.colour || item.color || "Standard"} | Status: ${item.status || order.orderStatus}</div>
+            </td>
+            <td class="text-center">${item.size || "N/A"}</td>
+            <td class="text-center">${item.quantity || 1}</td>
+            <td class="text-right">₹${Number(item.price || 0).toLocaleString("en-IN")}</td>
+            <td class="text-right">₹${Number(item.itemTotal || (item.price * item.quantity) || 0).toLocaleString("en-IN")}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+
+    <div class="summary-container">
+      <div class="summary-box">
+        <div class="summary-row">
+          <span>Subtotal</span>
+          <span>₹${Number(order.pricing?.subTotal || 0).toLocaleString("en-IN")}</span>
+        </div>
+        <div class="summary-row">
+          <span>Shipping Charge</span>
+          <span>${order.pricing?.shippingCharge > 0 ? "+₹" + Number(order.pricing.shippingCharge).toLocaleString("en-IN") : "FREE"}</span>
+        </div>
+        <div class="summary-row">
+          <span>GST / Tax (${order.pricing?.taxPercentage || 18}%)</span>
+          <span>₹${Number(order.pricing?.tax || 0).toLocaleString("en-IN")}</span>
+        </div>
+        ${order.pricing?.discount > 0 ? `
+        <div class="summary-row" style="color: #16a34a;">
+          <span>Coupon Discount${order.appliedCoupon?.code ? ` (${order.appliedCoupon.code})` : ""}</span>
+          <span>-₹${Number(order.pricing.discount).toLocaleString("en-IN")}</span>
+        </div>` : ""}
+        <div class="summary-row total">
+          <span>Total Amount</span>
+          <span>₹${Number(order.pricing?.totalAmount || 0).toLocaleString("en-IN")}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-note">
+      <p>This is a computer-generated tax invoice. No physical signature is required.</p>
+      <p>For any queries or customer support, please reach out to support@urbansole.com.</p>
+      <p style="margin-top: 4px; font-weight: 600; color: #111;">Thank you for shopping with Urban Sole!</p>
+    </div>
+  </div>
+
+  <script>
+    window.onload = function() {
+      setTimeout(function() {
+        window.print();
+      }, 500);
+    };
+  </script>
+</body>
+</html>
+    `;
+
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(invoiceHtml);
+      printWindow.document.close();
+      printWindow.focus();
+    } else {
+      toast.error("Pop-up blocked. Please allow pop-ups to download invoice.");
+    }
+  };
+
   const handleCancelOrder = async () => {
     try {
         if(cancellationId==orderId){
@@ -114,6 +509,7 @@ const TrackOrder = () => {
         }
    
     } catch (error) {
+      toast.error(error?.response?.data?.message||"Something went wrong")
       console.log(error?.response?.data?.message || "Failed to Return order");
     } 
   };
@@ -715,7 +1111,9 @@ const TrackOrder = () => {
               (
                 <button className="to-btn-bottom" onClick={() => { setIsCancelModalOpen(true); setCancellationId(orderId); }}>CANCEL ENTIRE ORDER</button>
               )}
-              <button className="to-btn-bottom">DOWNLOAD INVOICE</button>
+              {canDownloadInvoice() && (
+                <button className="to-btn-bottom" onClick={handleDownloadInvoice}>DOWNLOAD INVOICE</button>
+              )}
             </div>
 
           </div>

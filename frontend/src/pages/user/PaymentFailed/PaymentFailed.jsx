@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import axiosInstance from '../../../utils/axiosInstance';
 import { toast } from 'react-toastify';
 import { loadRazorpayScript } from '../../../utils/loadRazorpay';
+import Navbar from '../../../partials/navbar/navbar';
 
 const PaymentFailed = () => {
   const location = useLocation();
@@ -95,7 +96,9 @@ const PaymentFailed = () => {
 };
 
   return (
-    <div className="order-success-container">
+    <div className="order-page-wrapper">
+      <Navbar />
+      <div className="order-success-container">
       <div className="order-success-card">
         <div className="illustration-wrapper illustration-wrapper-failed">
           <div className="pulse-ring pulse-ring-failed"></div>
@@ -142,6 +145,7 @@ const PaymentFailed = () => {
           </button>
         </div>
       </div>
+    </div>
     </div>
   );
 };

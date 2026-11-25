@@ -5,6 +5,7 @@ import { logoutUser } from "../../redux/slices/authSlice";
 import { useDispatch, useSelector } from "react-redux";
 import { getCart } from "../../redux/slices/cartSlice";
 import { fetchWishlist } from "../../redux/slices/wishlistSlice"; 
+import { toast } from "react-toastify"; 
 
 
 const Navbar = () => {
@@ -44,11 +45,38 @@ useEffect(() => {
     const token = localStorage.getItem("token");
 
     if (!token) {
+      if (!toast.isActive("session-expired")) {
+        toast.error("Session expired Please login", { toastId: "session-expired", autoClose: 3000 });
+      }
       navigate("/user/login");
       return;
     }
 
     setShowAccount((prev) => !prev);
+  };
+
+  const handleWishlistClick = () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      if (!toast.isActive("session-expired")) {
+        toast.error("Session expired Please login", { toastId: "session-expired", autoClose: 3000 });
+      }
+      navigate("/user/login");
+      return;
+    }
+    navigate("/user/wishlist");
+  };
+
+  const handleCartClick = () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      if (!toast.isActive("session-expired")) {
+        toast.error("Session expired Please login", { toastId: "session-expired", autoClose: 3000 });
+      }
+      navigate("/user/login");
+      return;
+    }
+    navigate("/user/cart");
   };
 
   // Trigger Logout Modal
@@ -154,7 +182,7 @@ useEffect(() => {
            {/* WISHLIST */}
 <button 
   className="navbar-icon-btn wishlist-button"
-  onClick={() => navigate("/user/wishlist")}
+  onClick={handleWishlistClick}
 >
   <span className="material-symbols-outlined">
     favorite
@@ -171,7 +199,7 @@ useEffect(() => {
             {/* CART */}
             <button
               className="navbar-icon-btn cart-button"
-              onClick={() => navigate("/user/cart")}
+              onClick={handleCartClick}
             >
               <span className="material-symbols-outlined">
                 shopping_bag

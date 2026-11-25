@@ -6,6 +6,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { fetchWishlist, removeFromWishlist } from "../../../redux/slices/wishlistSlice";
 import { addToCart } from "../../../redux/slices/cartSlice"; 
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 export default function Wishlist() {
   const navigate=useNavigate()
  
@@ -24,6 +25,9 @@ export default function Wishlist() {
      const token=localStorage.getItem("token")
   console.log("Tok",token)
   if(!token){
+    if (!toast.isActive("session-expired")) {
+      toast.error("Session expired Please login", { toastId: "session-expired", autoClose: 3000 });
+    }
     return navigate("/user/login",{replace:true})
   }
     dispatch(fetchWishlist());
@@ -47,6 +51,14 @@ export default function Wishlist() {
 
   // 1. Open Modal and set initial default variant
   const handleOpenCartModal = (product) => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      if (!toast.isActive("session-expired")) {
+        toast.error("Session expired Please login", { toastId: "session-expired", autoClose: 3000 });
+      }
+      navigate("/user/login");
+      return;
+    }
     const variants = getProductVariants(product);
     setSelectedProductForCart(product);
     setSelectedVariant(variants.length > 0 ? variants[0] : null);

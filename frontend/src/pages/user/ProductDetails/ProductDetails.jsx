@@ -9,6 +9,7 @@ import { addToWishlist, removeFromWishlist, fetchWishlist } from '../../../redux
 import axiosInstance from '../../../utils/axiosInstance'
 import { toast, ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
+import { optimizeCloudinaryUrl } from '../../../utils/imageOptimizer'
 
 const ProductDetails = () => {
   const location = useLocation()
@@ -87,7 +88,7 @@ const ProductDetails = () => {
 
   useEffect(() => {
     const token = localStorage.getItem("token")
-    if (token) {
+    if (token && (!wishlistState?.wishlist?.products || wishlistItems.length === 0)) {
       dispatch(fetchWishlist())
     }
   }, [dispatch])
@@ -234,6 +235,15 @@ const ProductDetails = () => {
   };
 
   const handleWishlistToggle = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      if (!toast.isActive("session-expired")) {
+        toast.error("Session expired Please login", { toastId: "session-expired", autoClose: 3000 });
+      }
+      navigate("/user/login");
+      return;
+    }
+
     if (isProductInWishlist) {
       dispatch(removeFromWishlist(_id));
       showToast("Removed from wishlist");
@@ -273,13 +283,13 @@ const ProductDetails = () => {
           product: _id,
           _id: _id,
           name: name,
-          brand: brand?.name,
+          brand: brand?.name || (typeof brand === 'string' ? brand : ""),
           price: price,
           size: selectedSize,
           colour: currentVariant.colour,
           img: images[activeImg] || images[0],
           quantity: quantity,
-          offer: offer,
+          offer: Number(offer) || 0,
           status: status,
           stock: currentStock
         }] 
@@ -290,6 +300,14 @@ const ProductDetails = () => {
   // RELATED PRODUCT QUICK ADD-TO-CART HANDLERS
   const handleOpenRelatedCartModal = (e, relProduct) => {
     e.stopPropagation();
+    const token = localStorage.getItem("token");
+    if (!token) {
+      if (!toast.isActive("session-expired")) {
+        toast.error("Session expired Please login", { toastId: "session-expired", autoClose: 3000 });
+      }
+      navigate("/user/login");
+      return;
+    }
     setSelectedRelatedProduct(relProduct);
     const variants = relProduct.vartiant || [];
     let varIdx = 0;
@@ -410,7 +428,7 @@ const ProductDetails = () => {
             >
               {images.length > 0 ? (
                 <img 
-                  src={images[activeImg] || images[0]} 
+                  src={optimizeCloudinaryUrl(images[activeImg] || images[0], 1000)} 
                   alt={name} 
                   className={`us-main-img ${showMagnifier ? 'zoomed' : ''}`}
                   style={{
@@ -458,7 +476,7 @@ const ProductDetails = () => {
                     className={`us-thumb-btn ${activeImg === idx ? 'active' : ''}`}
                     onClick={() => setActiveImg(idx)}
                   >
-                    <img src={img} alt={`Thumbnail ${idx}`} />
+                    <img src={optimizeCloudinaryUrl(img, 150)} alt={`Thumbnail ${idx}`} loading="lazy" decoding="async" />
                   </button>
                 ))}
               </div>
@@ -580,14 +598,34 @@ const ProductDetails = () => {
                 <button 
                   className="us-btn-add-cart" 
                   disabled={selectedSize === null || getStockForSize(selectedSize) <= 0}
-                  onClick={() => setShowConfirmModal("cart")}
+                  onClick={() => {
+                    const token = localStorage.getItem("token");
+                    if (!token) {
+                      if (!toast.isActive("session-expired")) {
+                        toast.error("Session expired Please login", { toastId: "session-expired", autoClose: 3000 });
+                      }
+                      navigate("/user/login");
+                      return;
+                    }
+                    setShowConfirmModal("cart");
+                  }}
                 >
                   ADD TO CART
                 </button>
                 <button 
                   className="us-btn-buy-now" 
                   disabled={selectedSize === null || getStockForSize(selectedSize) <= 0}
-                  onClick={() => setShowConfirmModal("buy")}
+                  onClick={() => {
+                    const token = localStorage.getItem("token");
+                    if (!token) {
+                      if (!toast.isActive("session-expired")) {
+                        toast.error("Session expired Please login", { toastId: "session-expired", autoClose: 3000 });
+                      }
+                      navigate("/user/login");
+                      return;
+                    }
+                    setShowConfirmModal("buy");
+                  }}
                 >
                   BUY NOW
                 </button>
@@ -730,7 +768,7 @@ const ProductDetails = () => {
                     }}
                   >
                     <div className="us-trend-img-box">
-                      <img src={relImg} alt={relProduct.name} />
+                      <img src={optimizeCloudinaryUrl(relImg, 400)} alt={relProduct.name} loading="lazy" decoding="async" />
                       <button 
                         className={`us-trend-fav-btn ${isRelInWishlist ? 'active' : ''}`}
                         onClick={async (e) => {

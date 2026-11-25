@@ -23,13 +23,17 @@ try {
     wishlist = await Wishlist.create({ user: userId, products: [] });
   }
 
+  if (!wishlist.products || wishlist.products.length === 0) {
+    return res.status(200).json({ success: true, data: { ...wishlist.toObject(), products: [] } });
+  }
+
   const productIds = wishlist.products.map(p => p._id ? p._id.toString() : p.toString());
 
   const activeProducts = await Product.find({
     _id: { $in: productIds },
     isListed: true,
     status: "Active"
-  }).select("_id");
+  }).select("_id").lean();
 
   const validProductIds = activeProducts.map(product => product._id);
 
@@ -39,14 +43,17 @@ try {
   }
 
   // 4. Populate the wishlist products right before sending the response
-  const populatedWishlist = await Wishlist.findOne({ user: userId }).populate({
-    path: "products",
-    populate: [
-      { path: "category" },
-      { path: "brand" },
-      { path: "vartiant" }
-    ]
-  });
+  const populatedWishlist = await Wishlist.findOne({ user: userId })
+    .populate({
+      path: "products",
+      select: "name price offer brand category vartiant image status isListed",
+      populate: [
+        { path: "category", select: "name" },
+        { path: "brand", select: "name" },
+        { path: "vartiant", select: "images colour inventory" }
+      ]
+    })
+    .lean();
 
   return res.status(200).json({ success: true, data: populatedWishlist });
 
