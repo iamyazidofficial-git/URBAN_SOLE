@@ -362,9 +362,12 @@
 
 /* Bottom Action Buttons */
 .to-bottom-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
   gap: 16px;
+}
+
+.to-bottom-actions > * {
+  flex: 1;
 }
 
 .to-btn-bottom {
@@ -391,7 +394,7 @@
 
 @media (max-width: 600px) {
   .to-bottom-actions {
-    grid-template-columns: 1fr;
+    flex-direction: column;
   }
 }
 

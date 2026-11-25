@@ -21,13 +21,12 @@ const ProductManagement = () => {
 
     //-------------------GET-------------------
 
-  const getProducts = async (page = 1, searchQuery = '') => {
+  const getProducts = async (page = currentPage, searchQuery = search) => {
     try {
       const response = await axiosInstance.get(`/admin/product/getProducts?page=${page}&limit=8&search=${searchQuery}`)
       if (response.data?.success === true) {
         setProducts(response.data?.data || [])
         setTotalPages(response.data?.totalPages || 1)
-        setCurrentPage(response.data?.currentPage || page)
         setTotalProducts(response.data?.totalProducts || 0)
       }
     } catch (error) {
@@ -42,7 +41,6 @@ const handleSearch = (eOrString) => {
 
   setSearch(searchTerm)
   setCurrentPage(1)
-  getProducts(1, searchTerm)
 }
 
   //-------------------TOGGLE------------------
@@ -66,7 +64,11 @@ const handleSearch = (eOrString) => {
       const response = await axiosInstance.patch(`/admin/product/deleteProduct/${deleteModalProductId}`)
       if (response.data?.success) {
         setDeleteModalProductId(null)
-        getProducts(currentPage, search)
+        if (products.length === 1 && currentPage > 1) {
+          setCurrentPage(prev => prev - 1)
+        } else {
+          getProducts(currentPage, search)
+        }
       }
     } catch (error) {
       console.error("Error deleting product", error)
@@ -87,7 +89,7 @@ const handleSearch = (eOrString) => {
 
   useEffect(() => {
     getProducts(currentPage, search)
-  }, [currentPage])
+  }, [currentPage, search])
 
   return (
     <>
@@ -122,7 +124,6 @@ const handleSearch = (eOrString) => {
             onClear={() => {
               setSearch('');
               setCurrentPage(1);
-              getProducts(1, '');
             }}
           />
         </div>
@@ -239,11 +240,19 @@ const handleSearch = (eOrString) => {
               Showing page {currentPage} of {totalPages || 1} ({totalProducts} total entries)
             </span>
             <div className="pagination">
-              <button className="page-btn" onClick={() => changePage("prev")} disabled={currentPage === 1}>
+              <button 
+                className="page-btn" 
+                onClick={() => changePage("prev")} 
+                disabled={currentPage === 1}
+              >
                 Prev
               </button>
               <button className="page-btn active">{currentPage}</button>
-              <button className="page-btn" onClick={() => changePage("next")} disabled={currentPage >= totalPages}>
+              <button 
+                className="page-btn" 
+                onClick={() => changePage("next")} 
+                disabled={currentPage >= totalPages}
+              >
                 Next
               </button>
             </div>

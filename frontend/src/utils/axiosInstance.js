@@ -72,27 +72,27 @@ axiosInstance.interceptors.response.use(
 
     // 1. Check if user is blocked
     if (
-      error.response?.status === STATUS_CODES.FORBIDDEN &&
-      errorMessage === "Your account has been blocked"
+      error.response?.status === STATUS_CODES.FORBIDDEN ||
+      errorMessage.toLowerCase().includes("blocked")
     ) {
       console.log("BLOCKED USER DETECTED")
 
       localStorage.removeItem("token")
-      localStorage.removeItem("user") // യൂസർ ഡാറ്റ ഉണ്ടെങ്കിൽ അതും കളയാം
+      localStorage.removeItem("user")
 
-      if (!toast.isActive("blocked-user")) {
+      if (!toast.isActive("session-expired")) {
         toast.error(
-          "You have been blocked. Please contact admin.",
+          "Session expired Please login",
           {
-            toastId: "blocked-user",
-            autoClose: 5000
+            toastId: "session-expired",
+            autoClose: 3000
           }
         )
       }
 
       setTimeout(() => {
         window.location.replace("/user/login")
-      }, 5000)
+      }, 1000)
 
       return Promise.reject(error)
     }
@@ -102,26 +102,27 @@ axiosInstance.interceptors.response.use(
       error.response?.status === STATUS_CODES.UNAUTHORIZED || 
       errorMessage.toLowerCase().includes("token expired") ||
       errorMessage.toLowerCase().includes("jwt expired") ||
-      errorMessage.toLowerCase().includes("unauthorized")
+      errorMessage.toLowerCase().includes("unauthorized") ||
+      errorMessage.toLowerCase().includes("invalid or expired token")
     ) {
       console.log("TOKEN EXPIRED OR UNAUTHORIZED DETECTED")
 
       localStorage.removeItem("token")
       localStorage.removeItem("user")
 
-      if (!toast.isActive("token-expired")) {
+      if (!toast.isActive("session-expired")) {
         toast.error(
-          "Session expired. Please log in again.",
+          "Session expired Please login",
           {
-            toastId: "token-expired",
-            autoClose: 4000
+            toastId: "session-expired",
+            autoClose: 3000
           }
         )
       }
 
       setTimeout(() => {
         window.location.replace("/user/login")
-      }, 4000)
+      }, 1000)
 
       return Promise.reject(error)
     }

@@ -1,5 +1,6 @@
 /***************************************IMPORTS*****************************************/
 
+const mongoose = require("mongoose")
 const Product = require("../models/product")
 const Brand = require("../models/brand")
 const Variant = require("../models/variant")
@@ -197,60 +198,69 @@ const getProductService = async (queryParams) => {
   try {
     const { role = 'user', gender, category, brand, price, color, size, search, sort, page = 1, limit = 8 } = queryParams
 
+    console.log("PAGEEE",page)
+
     let filter = {}
-    filter.isListed = true
+    filter.isListed = { $ne: false }
 
     if (role === 'user') {
       filter.status = "Active"
-
-      const activeBrands = await Brand.find({ isListed: { $ne: false } }).select('_id')
-      const activeCategories = await SubCategory.find({ isListed: { $ne: false } }).select('_id')
-
-      filter.brand = { $in: activeBrands.map(b => b._id) }
-      filter.category = { $in: activeCategories.map(c => c._id) }
     }
 
     if (gender) filter.gender = gender
 
-      /**********************Search*******************/
+    /**********************Parallel Setup Tasks*******************/
+    const setupTasks = []
 
-    if (search) {
-      const trimmedSearch = search.trim()
-      const regexSearch = new RegExp(trimmedSearch, 'i')
-
-      const matchingBrands = await Brand.find({ name: regexSearch }).select('_id')
-      const brandIds = matchingBrands.map(b => b._id)
-
-      filter.$or = [
-        { name: { $regex: regexSearch } },
-        { brand: { $in: brandIds } }
-      ]
-    }
-
-      /*********************filters*******************/
-
-   if (category) {
+    if (category) {
       const categoryNames = category.split(',').map(cat => cat.trim()).filter(Boolean)
-      const matchedCategories = await SubCategory.find({ name: { $in: categoryNames }, isListed: {$ne: false } })
-      filter.category = { $in: matchedCategories.map(cat => cat._id) }
+      setupTasks.push(
+        SubCategory.find({ name: { $in: categoryNames }, isListed: { $ne: false } }).select('_id').lean()
+          .then(matchedCategories => {
+            filter.category = { $in: matchedCategories.map(cat => cat._id) }
+          })
+      )
+    } else if (role === 'user') {
+      setupTasks.push(
+        SubCategory.find({ isListed: { $ne: false } }).select('_id').lean()
+          .then(activeCategories => {
+            filter.category = { $in: activeCategories.map(c => c._id) }
+          })
+      )
     }
 
     if (brand) {
       const brandNames = brand.split(',').map(b => b.trim()).filter(Boolean)
-      const matchedBrands = await Brand.find({ name: { $in: brandNames }, isListed: {$ne: false } })
-      filter.brand = { $in: matchedBrands.map(b => b._id) }
+      setupTasks.push(
+        Brand.find({ name: { $in: brandNames }, isListed: { $ne: false } }).select('_id').lean()
+          .then(matchedBrands => {
+            filter.brand = { $in: matchedBrands.map(b => b._id) }
+          })
+      )
+    } else if (role === 'user') {
+      setupTasks.push(
+        Brand.find({ isListed: { $ne: false } }).select('_id').lean()
+          .then(activeBrands => {
+            filter.brand = { $in: activeBrands.map(b => b._id) }
+          })
+      )
     }
 
-    if (price) {
-      const priceParts = price.split('-');
-      if (priceParts.length === 2) {
-        filter.price = { $gte: Number(priceParts[0]),$lte: Number(priceParts[1]) };
-      } else if (!isNaN(Number(price))) {
-        filter.price = { $lte: Number(price) };
-      }
+    if (search) {
+      const trimmedSearch = search.trim()
+      const escapedSearch = trimmedSearch.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&')
+      const regexSearch = new RegExp(escapedSearch, 'i')
+      setupTasks.push(
+        Brand.find({ name: regexSearch }).select('_id').lean()
+          .then(matchingBrands => {
+            const brandIds = matchingBrands.map(b => b._id)
+            filter.$or = [
+              { name: { $regex: regexSearch } },
+              { brand: { $in: brandIds } }
+            ]
+          })
+      )
     }
-
-      /****************Variant filters*****************/
 
     let variantFilter = {}
     if (color) {
@@ -268,12 +278,29 @@ const getProductService = async (queryParams) => {
     }
 
     if (Object.keys(variantFilter).length > 0) {
-      const matchingVariants = await Variant.find(variantFilter).select('_id')
-      filter.vartiant = { $in: matchingVariants.map(v => v._id) }
+      setupTasks.push(
+        Variant.find(variantFilter).select('_id').lean()
+          .then(matchingVariants => {
+            filter.vartiant = { $in: matchingVariants.map(v => v._id) }
+          })
+      )
     }
 
-      /******************Queries*******************/
+    if (setupTasks.length > 0) {
+      await Promise.all(setupTasks)
+    }
 
+    /****************Price Filter*****************/
+    if (price) {
+      const priceParts = price.split('-');
+      if (priceParts.length === 2) {
+        filter.price = { $gte: Number(priceParts[0]), $lte: Number(priceParts[1]) };
+      } else if (!isNaN(Number(price))) {
+        filter.price = { $lte: Number(price) };
+      }
+    }
+
+    /******************Queries & Sorting*******************/
     let sortQuery = {}
     if (sort === 'price-asc') sortQuery.price = 1
     else if (sort === 'price-desc') sortQuery.price = -1
@@ -281,26 +308,150 @@ const getProductService = async (queryParams) => {
     else if (sort === 'name-desc') sortQuery.name = -1
     else sortQuery.createdAt = -1 
 
-     /******************Pagination*******************/
+    /****************Auto-Repair String References****************/
+    try {
+      const stringBrandProducts = await Product.find({ brand: { $type: "string" } }).select('_id brand').lean()
+      if (stringBrandProducts && stringBrandProducts.length > 0) {
+        for (const p of stringBrandProducts) {
+          if (!p.brand) continue
+          let matchedBrand = null
+          if (mongoose.Types.ObjectId.isValid(p.brand)) {
+            matchedBrand = await Brand.findById(p.brand).select('_id').lean()
+          }
+          if (!matchedBrand) {
+            matchedBrand = await Brand.findOne({ name: { $regex: new RegExp(`^${p.brand.trim()}$`, 'i') } }).select('_id').lean()
+          }
+          if (matchedBrand) {
+            await Product.updateOne({ _id: p._id }, { $set: { brand: matchedBrand._id } })
+          } else {
+            const anyBrand = await Brand.findOne({ isDeleted: { $ne: true } }).select('_id').lean()
+            if (anyBrand) {
+              await Product.updateOne({ _id: p._id }, { $set: { brand: anyBrand._id } })
+            }
+          }
+        }
+      }
 
-    const pageNum = Math.max(1, Number(page))
-    const limitNum = Math.max(1, Number(limit))
+      const stringCategoryProducts = await Product.find({ category: { $type: "string" } }).select('_id category').lean()
+      if (stringCategoryProducts && stringCategoryProducts.length > 0) {
+        for (const p of stringCategoryProducts) {
+          if (!p.category) continue
+          let matchedCat = null
+          if (mongoose.Types.ObjectId.isValid(p.category)) {
+            matchedCat = await SubCategory.findById(p.category).select('_id').lean()
+          }
+          if (!matchedCat) {
+            matchedCat = await SubCategory.findOne({ name: { $regex: new RegExp(`^${p.category.trim()}$`, 'i') } }).select('_id').lean()
+          }
+          if (matchedCat) {
+            await Product.updateOne({ _id: p._id }, { $set: { category: matchedCat._id } })
+          }
+        }
+      }
+    } catch (sanitizeErr) {
+      console.warn("Auto-repair brand/category error:", sanitizeErr.message)
+    }
+
+    /******************Pagination & Parallel Execution*******************/
+    const pageNum = Math.max(1, parseInt(page, 10) || 1)
+    const limitNum = Math.max(1, parseInt(limit, 10) || 8)
     const startIndex = (pageNum - 1) * limitNum
 
-    const totalProducts = await Product.countDocuments(filter)
+    let totalProducts = 0
+    let paginatedProducts = []
+
+    try {
+      const [total, prods] = await Promise.all([
+        Product.countDocuments(filter),
+        Product.find(filter)
+          .select('name price offer offerExpiry gender isListed status vartiant brand category description countryOfOrgin')
+          .populate({ path: 'brand', select: 'name isListed' })
+          .populate({ path: 'category', select: 'name isListed' })
+          .populate({ path: 'vartiant', select: 'colour colourHex inventory images' })
+          .sort(sortQuery)
+          .skip(startIndex)
+          .limit(limitNum)
+          .lean()
+      ])
+      totalProducts = total
+      paginatedProducts = prods
+    } catch (popErr) {
+      const [total, rawProds] = await Promise.all([
+        Product.countDocuments(filter),
+        Product.find(filter)
+          .select('name price offer offerExpiry gender isListed status vartiant brand category description countryOfOrgin')
+          .sort(sortQuery)
+          .skip(startIndex)
+          .limit(limitNum)
+          .lean()
+      ])
+      totalProducts = total
+
+      const brandIds = []
+      const catIds = []
+      const variantIds = []
+
+      for (const p of rawProds) {
+        if (p.brand && mongoose.Types.ObjectId.isValid(p.brand)) brandIds.push(p.brand)
+        if (p.category && mongoose.Types.ObjectId.isValid(p.category)) catIds.push(p.category)
+        if (Array.isArray(p.vartiant)) {
+          p.vartiant.forEach(v => {
+            if (v && mongoose.Types.ObjectId.isValid(v)) variantIds.push(v)
+          })
+        }
+      }
+
+      const [brands, categories, variants] = await Promise.all([
+        Brand.find({ _id: { $in: brandIds } }).select('name isListed').lean(),
+        SubCategory.find({ _id: { $in: catIds } }).select('name isListed').lean(),
+        Variant.find({ _id: { $in: variantIds } }).select('colour colourHex inventory images').lean()
+      ])
+
+      const brandMap = new Map(brands.map(b => [b._id.toString(), b]))
+      const catMap = new Map(categories.map(c => [c._id.toString(), c]))
+      const variantMap = new Map(variants.map(v => [v._id.toString(), v]))
+
+      paginatedProducts = rawProds.map(p => {
+        let brandObj = null
+        if (p.brand) {
+          if (mongoose.Types.ObjectId.isValid(p.brand)) {
+            brandObj = brandMap.get(p.brand.toString()) || null
+          } else if (typeof p.brand === 'string') {
+            brandObj = { name: p.brand, isListed: true }
+          }
+        }
+
+        let catObj = null
+        if (p.category) {
+          if (mongoose.Types.ObjectId.isValid(p.category)) {
+            catObj = catMap.get(p.category.toString()) || null
+          } else if (typeof p.category === 'string') {
+            catObj = { name: p.category, isListed: true }
+          }
+        }
+
+        let populatedVariants = []
+        if (Array.isArray(p.vartiant)) {
+          populatedVariants = p.vartiant.map(v => {
+            if (mongoose.Types.ObjectId.isValid(v)) {
+              return variantMap.get(v.toString()) || v
+            }
+            return v
+          }).filter(Boolean)
+        }
+
+        return {
+          ...p,
+          brand: brandObj,
+          category: catObj,
+          vartiant: populatedVariants
+        }
+      })
+    }
+
     const totalPages = Math.ceil(totalProducts / limitNum) || 1
 
-      /****************Main Part***************/
-
-    const paginatedProducts = await Product.find(filter)
-      .populate('brand')
-      .populate('category')
-      .populate('vartiant')
-      .sort(sortQuery)
-      .skip(startIndex)
-      .limit(limitNum)
-
-    return {
+    return { 
       success: true,
       data: paginatedProducts,
       totalPages,
@@ -318,10 +469,33 @@ const getProductService = async (queryParams) => {
 /*-----------------------------GET SINGLE PRODUCT-------------------------------*/
 
 const getSingleProductService = async (productId, role = 'user') => {
-  const product = await Product.findById(productId)
-    .populate('category', 'name isListed')
-    .populate('vartiant')
-    .populate('brand', 'name isListed')
+  let product = null
+  try {
+    product = await Product.findById(productId)
+      .populate('category', 'name isListed')
+      .populate('vartiant')
+      .populate('brand', 'name isListed')
+      .lean()
+  } catch (err) {
+    product = await Product.findById(productId).lean()
+    if (product) {
+      if (product.brand && mongoose.Types.ObjectId.isValid(product.brand)) {
+        product.brand = await Brand.findById(product.brand).select('name isListed').lean()
+      } else if (typeof product.brand === 'string') {
+        const b = await Brand.findOne({ name: { $regex: new RegExp(`^${product.brand.trim()}$`, 'i') } }).select('name isListed').lean()
+        product.brand = b || { name: product.brand, isListed: true }
+      }
+      if (product.category && mongoose.Types.ObjectId.isValid(product.category)) {
+        product.category = await SubCategory.findById(product.category).select('name isListed').lean()
+      } else if (typeof product.category === 'string') {
+        const c = await SubCategory.findOne({ name: { $regex: new RegExp(`^${product.category.trim()}$`, 'i') } }).select('name isListed').lean()
+        product.category = c || { name: product.category, isListed: true }
+      }
+      if (Array.isArray(product.vartiant)) {
+        product.vartiant = await Variant.find({ _id: { $in: product.vartiant } }).lean()
+      }
+    }
+  }
 
   if (!product) {
     throw new Error("Product not found")

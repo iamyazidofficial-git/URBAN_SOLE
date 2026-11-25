@@ -216,6 +216,7 @@ export default function Checkout() {
   const [pinError, setPinError] = useState("");
   const [paymentMethod, selectedPaymentMethod] = useState("cashondelivery")
   const [orderConfirmModal, setOrderConfirmModal] = useState(false)
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false)
 
   const token = localStorage.getItem("token");
   const navigate = useNavigate()
@@ -486,6 +487,7 @@ export default function Checkout() {
       setOrderConfirmModal(false);
       return;
     }
+    setIsPlacingOrder(true);
     try {
       const response = await axiosInstance.post("/user/checkout/placeOrder", {
         productData: orderData.items,
@@ -503,14 +505,20 @@ export default function Checkout() {
 
           if (!razorpayOrder) {
             toast.error("Failed to initialize Razorpay order");
+            setIsPlacingOrder(false);
+            setOrderConfirmModal(false);
             return;
           }
 
           const isLoaded = await loadRazorpayScript();
           if (!isLoaded || !window.Razorpay) {
             toast.error("Razorpay SDK failed to load. Please check your internet connection.");
+            setIsPlacingOrder(false);
+            setOrderConfirmModal(false);
             return;
           }
+
+          setOrderConfirmModal(false);
 
           const razorpayKey =
             razorpayKeyId ||
@@ -575,14 +583,16 @@ export default function Checkout() {
           });
           rzp.open();
         } else {
+          setOrderConfirmModal(false);
           navigate("/user/checkout/orderSuccess", { replace: true, state: resData });
         }
       }
     } catch (error) {
-      toast.error(error?.response?.data?.message || error?.message || "Something went wrong");
+      toast.error(error?.response?.data?.message || error?.message || "Failed to place order");
       console.log(error);
-    } finally {
       setOrderConfirmModal(false);
+    } finally {
+      setIsPlacingOrder(false);
     }
   };
 
@@ -692,7 +702,7 @@ export default function Checkout() {
                       <span className="item-qty">Qty: {item.quantity}</span>
                       <p className="ms-card-price"> ₹{item.offer && item.offer > 0
                         ? Math.round(item.price - (item.price * item.offer) / 100)
-                        : item.price}
+                        : (item.effectivePrice !== undefined ? Math.round(item.effectivePrice) : item.price)}
                       </p>                    </div>
                   </div>
                 </div>
@@ -773,7 +783,7 @@ export default function Checkout() {
                   </div>
                   {orderData?.couponDiscount > 0 && (
                     <div className="price-row" style={{ color: "#16a34a" }}>
-                      <span>Coupon Discount</span>
+                      <span>Coupon Discount (Subtotal-Discount)</span>
                       <span className="price-highlight" style={{ color: "#16a34a" }}>
                         -₹{orderData.couponDiscount}
                       </span>
@@ -872,62 +882,92 @@ export default function Checkout() {
 
 
             <div className="coupon-list">
-              {coupons?.map((coupon) => {
-                const isSelected = selectedCoupon === coupon._id || selectedCoupon === coupon.code;
+              {(() => {
+                let currentUserId = null;
+                try {
+                  const token = localStorage.getItem("token");
+                  if (token) {
+                    const base64Url = token.split(".")[1];
+                    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+                    const jsonPayload = decodeURIComponent(
+                      atob(base64)
+                        .split("")
+                        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+                        .join("")
+                    );
+                    const parsed = JSON.parse(jsonPayload);
+                    currentUserId = parsed?._id || parsed?.id || null;
+                  }
+                } catch (e) {}
 
-                return (
-                  <div
-                    className={`coupon-card ${isSelected ? "applied" : ""}`}
-                    key={coupon._id || coupon.code}
-                  >
-                    
+                const availableCoupons = (coupons || []).filter((coupon) => {
+                  if (!currentUserId || !coupon?.usedBy || !Array.isArray(coupon.usedBy)) return true;
+                  return !coupon.usedBy.some((u) => u?.toString() === currentUserId?.toString());
+                });
 
-                    {coupon.badge && !isSelected && (
-                      <span className="coupon-badge-timer">
-                        🕒 {coupon.badge}
-                      </span>
-                    )}
-
-                    <h4 className="coupon-code-title">{coupon.code}</h4>
-                    <p className="coupon-discount-desc">
-                      {coupon.discountType === "Percentage"
-                        ? `${coupon.discountValue}% OFF`
-                        : `₹${coupon.discountValue} FLAT OFF`}
+                if (availableCoupons.length === 0) {
+                  return (
+                    <p style={{ textAlign: "center", color: "#6b7280", padding: "30px 10px", margin: 0, fontSize: "14px" }}>
+                      No coupons available for this order.
                     </p>
+                  );
+                }
 
-                    {coupon.subText && (
-                      <p className="coupon-subtext">{coupon.subText}</p>
-                    )}
+                return availableCoupons.map((coupon) => {
+                  const isSelected = selectedCoupon === coupon._id || selectedCoupon === coupon.code;
 
-                    <div className="coupon-card-footer">
-                      {(coupon.minCart || coupon.minOrder) > 0 && (
-                        <span className="coupon-limit">
-                          🛒 Min order ₹{coupon.minCart || coupon.minOrder}
+                  return (
+                    <div
+                      className={`coupon-card ${isSelected ? "applied" : ""}`}
+                      key={coupon._id || coupon.code}
+                    >
+                      {coupon.badge && !isSelected && (
+                        <span className="coupon-badge-timer">
+                          🕒 {coupon.badge}
                         </span>
                       )}
-                      {coupon.maxDiscount > 0 && (
-                        <span className="coupon-limit">
-                          🏷️ Max discount ₹{coupon.maxDiscount}
-                        </span>
+
+                      <h4 className="coupon-code-title">{coupon.code}</h4>
+                      <p className="coupon-discount-desc">
+                        {coupon.discountType === "Percentage"
+                          ? `${coupon.discountValue}% OFF`
+                          : `₹${coupon.discountValue} FLAT OFF`}
+                      </p>
+
+                      {coupon.subText && (
+                        <p className="coupon-subtext">{coupon.subText}</p>
                       )}
 
-                      {!isSelected && (
-                        <button
-                          className="coupon-card-apply-btn"
-                          onClick={async () => {
-                            setSelectedCoupon(coupon._id);
-                            setCouponModal(false);
-                            toast.success("Coupon applied!");
-                            await getCheckout(coupon._id);
-                          }}
-                        >
-                          APPLY
-                        </button>
-                      )}
+                      <div className="coupon-card-footer">
+                        {(coupon.minCart || coupon.minOrder) > 0 && (
+                          <span className="coupon-limit">
+                            🛒 Min order ₹{coupon.minCart || coupon.minOrder}
+                          </span>
+                        )}
+                        {coupon.maxDiscount > 0 && (
+                          <span className="coupon-limit">
+                            🏷️ Max discount ₹{coupon.maxDiscount}
+                          </span>
+                        )}
+
+                        {!isSelected && (
+                          <button
+                            className="coupon-card-apply-btn"
+                            onClick={async () => {
+                              setSelectedCoupon(coupon._id);
+                              setCouponModal(false);
+                              toast.success("Coupon applied!");
+                              await getCheckout(coupon._id);
+                            }}
+                          >
+                            APPLY
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                });
+              })()}
             </div>
           </div>
         </div>
@@ -1065,30 +1105,40 @@ export default function Checkout() {
 
 
 
-      {/* DELETE MODAL */}
+      {/* CONFIRM ORDER MODAL */}
       {orderConfirmModal && (
         <div className="modal-overlay">
-          <div className="delete-modal">
-            <div className="delete-icon">!</div>
+          <div className="order-confirm-modal">
+            <div className="order-confirm-icon">
+              <span className="material-symbols-outlined">shopping_bag</span>
+            </div>
             <h2>PLACE ORDER?</h2>
             <p>Are you sure you want to purchase this order?</p>
 
             <div className="modal-actions">
               <button
                 type="button"
-                className="cancel-btn"
+                className="order-confirm-cancel-btn"
+                disabled={isPlacingOrder}
                 onClick={() => {
-                  setOrderConfirmModal(false)
+                  if (!isPlacingOrder) setOrderConfirmModal(false);
                 }}
               >
                 CANCEL
               </button>
               <button
                 type="button"
-                className="delete-confirm-btn"
+                className="order-confirm-submit-btn"
+                disabled={isPlacingOrder}
                 onClick={placeOrder}
               >
-                Confirm
+                {isPlacingOrder ? (
+                  <span className="order-spinner-container">
+                    <span className="order-btn-spinner"></span> PLACING ORDER...
+                  </span>
+                ) : (
+                  "CONFIRM"
+                )}
               </button>
             </div>
           </div>

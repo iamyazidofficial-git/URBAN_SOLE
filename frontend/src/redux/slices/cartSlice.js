@@ -1,5 +1,6 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit"
 import axiosInstance from "../../utils/axiosInstance"
+import { toast } from "react-toastify"
 
 export const addToCart = createAsyncThunk(
   "cart/addToCart",
@@ -7,8 +8,16 @@ export const addToCart = createAsyncThunk(
    try {
       const token = localStorage.getItem("token")
       if (!token) {
-        window.location.href = "/user/login";
-        return rejectWithValue("No token found, please login");
+        if (!toast.isActive("session-expired")) {
+          toast.error("Session expired Please login", {
+            toastId: "session-expired",
+            autoClose: 3000
+          });
+        }
+        setTimeout(() => {
+          window.location.replace("/user/login");
+        }, 1000);
+        return rejectWithValue("Session expired Please login");
       }
 
       const response = await axiosInstance.post("/user/cart/addToCart", { product })
@@ -50,7 +59,7 @@ export const increment = createAsyncThunk(
       const response = await axiosInstance.patch(`/user/cart/increaseQuantity/${_id}`)
       return response?.data?.data || response?.data
     } catch (error) {
-      return rejectWithValue(error.response?.data || error.message);
+      return rejectWithValue(error.response?.data?.message || error.response?.data || error.message);
     }
   }
 );
@@ -62,7 +71,7 @@ export const decrement = createAsyncThunk(
       const response = await axiosInstance.patch(`/user/cart/decreaseQuantity/${_id}`);
       return response?.data?.data || response?.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data || error.message);
+      return rejectWithValue(error.response?.data?.message || error.response?.data || error.message);
     }
   }
 );
@@ -80,23 +89,69 @@ const cartSlice = createSlice({
            state.cart = action.payload;
         })
         .addCase(getCart.pending, (state) => {
-          state.loading = true;
+          if (!state.cart) {
+            state.loading = true;
+          }
         })
         .addCase(getCart.fulfilled, (state, action) => {
-  state.cart = action.payload?.data || action.payload;
-  state.loading = false;
-})
+          state.cart = action.payload?.data || action.payload;
+          state.loading = false;
+        })
         .addCase(getCart.rejected, (state) => {
           state.loading = false;
         })
         .addCase(removeFromCart.fulfilled, (state, action) => {
           state.cart = action.payload?.data || action.payload;
         })
+        .addCase(increment.pending, (state, action) => {
+          const itemId = action.meta.arg?._id;
+          const items = state.cart?.items || (Array.isArray(state.cart) ? state.cart : null);
+          if (items) {
+            const item = items.find(i => (i._id?.toString() === itemId?.toString()));
+            if (item && item.quantity < 5) {
+              item._prevQuantity = item.quantity;
+              item.quantity += 1;
+            }
+          }
+        })
         .addCase(increment.fulfilled, (state, action) => {
           state.cart = action.payload?.data || action.payload;
         })
+        .addCase(increment.rejected, (state, action) => {
+          const itemId = action.meta.arg?._id;
+          const items = state.cart?.items || (Array.isArray(state.cart) ? state.cart : null);
+          if (items) {
+            const item = items.find(i => (i._id?.toString() === itemId?.toString()));
+            if (item && item._prevQuantity !== undefined) {
+              item.quantity = item._prevQuantity;
+              delete item._prevQuantity;
+            }
+          }
+        })
+        .addCase(decrement.pending, (state, action) => {
+          const itemId = action.meta.arg?._id;
+          const items = state.cart?.items || (Array.isArray(state.cart) ? state.cart : null);
+          if (items) {
+            const item = items.find(i => (i._id?.toString() === itemId?.toString()));
+            if (item && item.quantity > 1) {
+              item._prevQuantity = item.quantity;
+              item.quantity -= 1;
+            }
+          }
+        })
         .addCase(decrement.fulfilled, (state, action) => {
           state.cart = action.payload?.data || action.payload;
+        })
+        .addCase(decrement.rejected, (state, action) => {
+          const itemId = action.meta.arg?._id;
+          const items = state.cart?.items || (Array.isArray(state.cart) ? state.cart : null);
+          if (items) {
+            const item = items.find(i => (i._id?.toString() === itemId?.toString()));
+            if (item && item._prevQuantity !== undefined) {
+              item.quantity = item._prevQuantity;
+              delete item._prevQuantity;
+            }
+          }
         });
     }
 });

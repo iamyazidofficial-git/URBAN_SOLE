@@ -25,7 +25,7 @@ const getRazorpayInstance = () => {
     return new Razorpay({ key_id, key_secret });
 };
 
-const findCoupon = async (selectedCoupon) => {
+const findCoupon = async (selectedCoupon, userId = null) => {
     if (!selectedCoupon) return null;
     const identifier = String(selectedCoupon).trim();
     if (!identifier) return null;
@@ -37,18 +37,34 @@ const findCoupon = async (selectedCoupon) => {
     if (!coupon) {
         coupon = await Coupon.findOne({ code: identifier.toUpperCase(), status: "Active" });
     }
+    if (!coupon) return null;
+
+    const now = new Date();
+    if (new Date(coupon.expiryDate) < now || (coupon.usageCount && coupon.usedCount >= coupon.usageCount)) {
+        await Coupon.deleteOne({ _id: coupon._id });
+        return null;
+    }
+
+    if (userId && coupon.usedBy && coupon.usedBy.some(u => u?.toString() === userId?.toString())) {
+        return null;
+    }
+
     return coupon;
 };
+
+
 
 const calculateOrderPricing = (productData, readyCoupon) => {
     let subTotal = 0;
     const taxPercentage = 18;
 
+    console.log("PRRROR",productData)
+
     const processedItems = (productData || []).map((rawItem) => {
         let unitPrice = Number(rawItem.price) || 0;
-        if (rawItem.offer && Number(rawItem.offer) > 0) {
-            const offerDiscount = (unitPrice * Number(rawItem.offer)) / 100;
-            unitPrice -= offerDiscount;
+        const offer = Number(rawItem.offer) || 0;
+        if (offer > 0) {
+            unitPrice = Math.round(unitPrice - (unitPrice * offer) / 100);
         }
         unitPrice = Number(unitPrice.toFixed(2));
         const qty = Math.max(1, Number(rawItem.quantity) || 1);
@@ -57,6 +73,8 @@ const calculateOrderPricing = (productData, readyCoupon) => {
 
         return {
             ...rawItem,
+            price: Number(rawItem.price) || unitPrice,
+            offer: offer,
             effectivePrice: unitPrice,
             quantity: qty,
             lineTotal: lineTotal
@@ -121,9 +139,34 @@ const calculateOrderPricing = (productData, readyCoupon) => {
     };
 };
 
-const fetchCheckoutService=async(productData,selectedCoupon,type)=>{
-    const readyCoupon = await findCoupon(selectedCoupon);
-    const pricing = calculateOrderPricing(productData, readyCoupon);
+const fetchCheckoutService=async(productData,selectedCoupon,type,userId=null)=>{
+    let itemsToProcess = Array.isArray(productData) ? [...productData] : [];
+
+    if (itemsToProcess.length > 0) {
+        const productIds = itemsToProcess.map(i => i.product || i._id).filter(Boolean);
+        if (productIds.length > 0) {
+            const dbProducts = await Product.find({ _id: { $in: productIds } }).select("price offer").lean();
+            const dbProductMap = new Map(dbProducts.map(p => [p._id.toString(), p]));
+
+            itemsToProcess = itemsToProcess.map(item => {
+                const pId = (item.product || item._id)?.toString();
+                const dbProd = dbProductMap.get(pId);
+                const offer = (item.offer !== undefined && item.offer !== null && Number(item.offer) > 0)
+                    ? Number(item.offer)
+                    : (dbProd?.offer || 0);
+                const price = Number(item.price) || Number(dbProd?.price) || 0;
+
+                return {
+                    ...item,
+                    price,
+                    offer
+                };
+            });
+        }
+    }
+
+    const readyCoupon = await findCoupon(selectedCoupon, userId);
+    const pricing = calculateOrderPricing(itemsToProcess, readyCoupon);
 
     return {
         subTotal: pricing.subTotal,
@@ -181,13 +224,37 @@ const placeOrderService=async(orderData)=>{
 
     let couponObject = null;
     if (coupon) {
-        couponObject = await findCoupon(coupon);
+        couponObject = await findCoupon(coupon, userId);
         if (!couponObject) {
             throw new Error("Coupon is unavailable or invalid");
         }
     }
 
-    const pricing = calculateOrderPricing(productData, couponObject);
+    let itemsToProcess = Array.isArray(productData) ? [...productData] : [];
+    if (itemsToProcess.length > 0) {
+        const productIds = itemsToProcess.map(i => i.product || i._id).filter(Boolean);
+        if (productIds.length > 0) {
+            const dbProducts = await Product.find({ _id: { $in: productIds } }).select("price offer").lean();
+            const dbProductMap = new Map(dbProducts.map(p => [p._id.toString(), p]));
+
+            itemsToProcess = itemsToProcess.map(item => {
+                const pId = (item.product || item._id)?.toString();
+                const dbProd = dbProductMap.get(pId);
+                const offer = (item.offer !== undefined && item.offer !== null && Number(item.offer) > 0)
+                    ? Number(item.offer)
+                    : (dbProd?.offer || 0);
+                const price = Number(item.price) || Number(dbProd?.price) || 0;
+
+                return {
+                    ...item,
+                    price,
+                    offer
+                };
+            });
+        }
+    }
+
+    const pricing = calculateOrderPricing(itemsToProcess, couponObject);
 
     // Verify wallet balance upfront before altering inventory
     let userWallet = null;
@@ -223,23 +290,31 @@ const placeOrderService=async(orderData)=>{
         const itemSize = Number(item.size);
         const itemQuantity = Number(item.quantity) || 1;
 
-        const updatedVariant = await Variant.findOneAndUpdate(
-            {
-                _id: itemVariant._id,
-                inventory: {
-                    $elemMatch: {
-                        size: itemSize,                   
-                        quantity: { $gte: itemQuantity }  
+        if (paymentMethod === "CASHONDELIVERY" || paymentMethod === "WALLET") {
+            const updatedVariant = await Variant.findOneAndUpdate(
+                {
+                    _id: itemVariant._id,
+                    inventory: {
+                        $elemMatch: {
+                            size: itemSize,                   
+                            quantity: { $gte: itemQuantity }  
+                        }
                     }
+                },
+                {
+                    $inc: { "inventory.$.quantity": -itemQuantity }
                 }
-            },
-            {
-                $inc: { "inventory.$.quantity": -itemQuantity }
-            }
-        );
+            );
 
-        if (!updatedVariant) {
-            throw new Error(`${productName || 'Product'} is out of stock for size ${item.size}`);
+            if (!updatedVariant) {
+                throw new Error(`${productName || 'Product'} is out of stock for size ${item.size}`);
+            }
+        } else {
+            // For RAZORPAY (pending payment), verify stock availability without deducting yet
+            const invItem = itemVariant.inventory?.find(i => Number(i.size) === itemSize);
+            if (!invItem || invItem.quantity < itemQuantity) {
+                throw new Error(`${productName || 'Product'} is out of stock for size ${item.size}`);
+            }
         }
 
         orderItems.push({
@@ -296,6 +371,24 @@ const formattedDate = `${startDay}–${endDay} ${month} ${year}`;
 console.log(formattedDate);
 
 
+    // Razorpay order creation
+    let razorpayOrder = null;
+    if (paymentMethod === "RAZORPAY") {
+        const options = {
+            amount: Math.round(pricing.totalAmount * 100), 
+            currency: "INR",
+            receipt: orderId,
+        };
+        
+        try {
+            const rzp = getRazorpayInstance();
+            razorpayOrder = await rzp.orders.create(options);
+        } catch (error) {
+            console.error("Razorpay API Error Details:", error);
+            throw new Error(error?.error?.description || error?.message || "Payment Failed");
+        }
+    }
+
     const orderedData = {
         orderId: orderId,
         user: user._id,
@@ -307,8 +400,15 @@ console.log(formattedDate);
         shippingAddress: shippingAddress,
         payment: {
             method: paymentMethod,
-            status: paymentMethod === "WALLET" ? "PAID" : "PENDING"
+            status: paymentMethod === "WALLET" ? "PAID" : "PENDING",
+            razorpayOrderId: razorpayOrder ? razorpayOrder.id : undefined
         },
+        appliedCoupon: couponObject ? {
+            coupon: couponObject._id,
+            code: couponObject.code,
+            discountPercentage: couponObject.discountValue || 0,
+            discountAmount: pricing.couponDiscount
+        } : undefined,
         pricing: {
             subTotal: pricing.subTotal,
             tax: pricing.tax,
@@ -336,35 +436,25 @@ console.log(formattedDate);
         });
     }
 
-    // Razorpay order creation
-    let razorpayOrder = null;
-    if (paymentMethod === "RAZORPAY") {
-        const options = {
-            amount: Math.round(pricing.totalAmount * 100), 
-            currency: "INR",
-            receipt: orderId,
-        };
-        
-        try {
-            const rzp = getRazorpayInstance();
-            razorpayOrder = await rzp.orders.create(options);
-        } catch (error) {
-            console.error("Razorpay API Error Details:", error);
-            throw new Error(error?.error?.description || error?.message || "Payment Failed");
-        }
-    }
-
     const newOrder = await Order.create(orderedData);
 
-    // If coupon used, increment its count
-    if (couponObject) {
-        await Coupon.updateOne(
-            { _id: couponObject._id },
-            { 
-                $inc: { usedCount: 1 },
-                $push: { usedBy: userId }
+    // If coupon used in COD/WALLET (order placed immediately), update coupon
+    if (couponObject && (paymentMethod === "CASHONDELIVERY" || paymentMethod === "WALLET")) {
+        const uId = userId?._id || userId;
+        const exists = couponObject.usedBy?.some(u => u?.toString() === uId?.toString());
+        if (!exists) {
+            await Coupon.updateOne(
+                { _id: couponObject._id },
+                { 
+                    $inc: { usedCount: 1 },
+                    $push: { usedBy: uId }
+                }
+            );
+            const updatedCoupon = await Coupon.findById(couponObject._id);
+            if (updatedCoupon && updatedCoupon.usageCount && updatedCoupon.usedCount >= updatedCoupon.usageCount) {
+                await Coupon.deleteOne({ _id: couponObject._id });
             }
-        );
+        }
     }
 
 
@@ -544,6 +634,7 @@ const getItemReturnRefundAmount = (order, item) => {
 const checkAndSyncOrderStatus = (order) => {
     if (!order.items || order.items.length === 0) return;
 
+    // Case 3: if all items are "CANCELLED", the order status must be "CANCELLED"
     const allCancelled = order.items.every(item => item.status === "CANCELLED");
     if (allCancelled) {
         order.orderStatus = "CANCELLED";
@@ -552,19 +643,34 @@ const checkAndSyncOrderStatus = (order) => {
         return;
     }
 
+    // Case 2: if all items are "RETURNED", the order status must be "RETURNED"
     const allReturned = order.items.every(item => item.status === "RETURNED");
-    if (allReturned) {
+    const allRemainingReturned = order.items.every(item => item.status === "RETURNED" || item.status === "CANCELLED") && order.items.some(item => item.status === "RETURNED");
+    if (allReturned || allRemainingReturned) {
         order.orderStatus = "RETURNED";
         if (!order.returnInfo) order.returnInfo = {};
         if (!order.returnInfo.returnedAt) order.returnInfo.returnedAt = new Date();
         return;
     }
 
-    const allTerminal = order.items.every(item => item.status === "RETURNED" || item.status === "CANCELLED");
-    if (allTerminal && order.items.some(item => item.status === "RETURNED")) {
-        order.orderStatus = "RETURNED";
-        if (!order.returnInfo) order.returnInfo = {};
-        if (!order.returnInfo.returnedAt) order.returnInfo.returnedAt = new Date();
+    // Case 1: if all items are "DELIVERED", the order status must be "DELIVERED"
+    const allDelivered = order.items.every(item => item.status === "DELIVERED");
+    const allRemainingDelivered = order.items.every(item => item.status === "DELIVERED" || item.status === "CANCELLED") && order.items.some(item => item.status === "DELIVERED");
+    if (allDelivered || allRemainingDelivered) {
+        order.orderStatus = "DELIVERED";
+        if (!order.deliveredAt) order.deliveredAt = new Date();
+        return;
+    }
+
+    const allShipped = order.items.every(item => item.status === "SHIPPED" || item.status === "CANCELLED") && order.items.some(item => item.status === "SHIPPED");
+    if (allShipped && order.orderStatus === "PLACED") {
+        order.orderStatus = "SHIPPED";
+        return;
+    }
+
+    const allOutOfDelivery = order.items.every(item => item.status === "OUT_OF_DELIVERY" || item.status === "CANCELLED") && order.items.some(item => item.status === "OUT_OF_DELIVERY");
+    if (allOutOfDelivery && ["PLACED", "SHIPPED"].includes(order.orderStatus)) {
+        order.orderStatus = "OUT_OF_DELIVERY";
         return;
     }
 };
@@ -631,7 +737,15 @@ const toggleStatusService = async (params, body) => {
         order.cancellation = order.cancellation || {};
         order.cancellation.reason = reason;
         order.cancellation.at = date;
+        order.cancellation = order.cancellation || {};
+        order.cancellation.reason = reason;
+        order.cancellation.at = date;
         order.cancellation.by = "ADMIN";
+
+        const cleanMethod = (order.payment?.method || "").replace(/[^a-zA-Z]/g, "").toUpperCase();
+        const isCashOnDelivery = cleanMethod === "CASHONDELIVERY" || cleanMethod === "COD";
+        const isPrepaidOrWallet = cleanMethod === "RAZORPAY" || cleanMethod === "WALLET";
+        const isPaid = order.payment?.status === "PAID";
 
         // Reupdate stock while cancelling items
         for (const item of order.items) {
@@ -639,13 +753,18 @@ const toggleStatusService = async (params, body) => {
                 await restoreItemStock(item);
                 item.status = "CANCELLED";
                 item.cancellation = { reason, at: date, by: "ADMIN" };
-                item.refundStatus = "REFUNDED";
+                item.refundStatus = (isPrepaidOrWallet && isPaid) ? "REFUNDED" : "NONE";
+                if (isPrepaidOrWallet && isPaid) {
+                    item.refundedAmount = (item.itemTotal !== undefined && Number(item.itemTotal) > 0)
+                        ? Number(item.itemTotal)
+                        : getItemReturnRefundAmount(order, item);
+                } else {
+                    item.refundedAmount = 0;
+                }
             }
         }
 
         // Refund if Razorpay or Wallet and order is paid
-        const isPrepaidOrWallet = ["RAZORPAY", "WALLET"].includes(order.payment?.method);
-        const isPaid = order.payment?.status === "PAID";
         if (isPrepaidOrWallet && isPaid) {
             const alreadyRefunded = Number(order.payment?.refundedAmount) || 0;
             const refundAmount = Math.max(0, Number((order.pricing.totalAmount - alreadyRefunded).toFixed(2)));
@@ -662,6 +781,10 @@ const toggleStatusService = async (params, body) => {
                 order.payment.status = "REFUNDED";
                 order.refundStatus = "REFUNDED";
             }
+        } else {
+            // CASH_ON_DELIVERY or unpaid: no refund
+            order.refundStatus = "NONE";
+            order.payment.refundedAmount = 0;
         }
         order.orderStatus = "CANCELLED";
     }
@@ -801,19 +924,29 @@ const cancelOrderService = async (params, body) => {
 
     const date = new Date();
 
+    const cleanMethod = (order.payment?.method || "").replace(/[^a-zA-Z]/g, "").toUpperCase();
+    const isCashOnDelivery = cleanMethod === "CASHONDELIVERY" || cleanMethod === "COD";
+    const isPrepaidOrWallet = cleanMethod === "RAZORPAY" || cleanMethod === "WALLET";
+    const isPaid = order.payment?.status === "PAID";
+
     // Reupdate stock while cancelling items or order
     for (const item of order.items) {
         if (item.status !== "CANCELLED") {
             await restoreItemStock(item);
             item.status = "CANCELLED";
             item.cancellation = { reason, at: date, by: "USER" };
-            item.refundStatus = "REFUNDED";
+            item.refundStatus = (isPrepaidOrWallet && isPaid) ? "REFUNDED" : "NONE";
+            if (isPrepaidOrWallet && isPaid) {
+                item.refundedAmount = (item.itemTotal !== undefined && Number(item.itemTotal) > 0)
+                    ? Number(item.itemTotal)
+                    : getItemReturnRefundAmount(order, item);
+            } else {
+                item.refundedAmount = 0;
+            }
         }
     }
 
     // If Razorpay or Wallet, refund fullAmount to wallet
-    const isPrepaidOrWallet = ["RAZORPAY", "WALLET"].includes(order.payment?.method);
-    const isPaid = order.payment?.status === "PAID";
     if (isPrepaidOrWallet && isPaid) {
         const alreadyRefunded = Number(order.payment?.refundedAmount) || 0;
         const refundAmount = Math.max(0, Number((order.pricing.totalAmount - alreadyRefunded).toFixed(2)));
@@ -830,6 +963,10 @@ const cancelOrderService = async (params, body) => {
             order.payment.status = "REFUNDED";
             order.refundStatus = "REFUNDED";
         }
+    } else {
+        // CASH_ON_DELIVERY or unpaid: no refund
+        order.refundStatus = "NONE";
+        order.payment.refundedAmount = 0;
     }
 
     order.orderStatus = "CANCELLED";
@@ -892,19 +1029,28 @@ const cancelProductService = async (params, body) => {
     // Reupdate stock while cancelling items
     await restoreItemStock(item);
 
-    // If Razorpay or Wallet, refund to wallet
-    const isPrepaidOrWallet = ["RAZORPAY", "WALLET"].includes(order.payment?.method);
+    const cleanMethod = (order.payment?.method || "").replace(/[^a-zA-Z]/g, "").toUpperCase();
+    const isCashOnDelivery = cleanMethod === "CASHONDELIVERY" || cleanMethod === "COD";
+    const isPrepaidOrWallet = cleanMethod === "RAZORPAY" || cleanMethod === "WALLET";
     const isPaid = order.payment?.status === "PAID";
+
+    // If Razorpay or Wallet, refund to wallet
     if (isPrepaidOrWallet && isPaid && item.refundStatus !== "REFUNDED") {
         const alreadyRefunded = Number(order.payment?.refundedAmount) || 0;
         const remainingUnrefunded = Math.max(0, Number((order.pricing.totalAmount - alreadyRefunded).toFixed(2)));
         const otherActiveItems = order.items.filter(i => 
             i._id.toString() !== item._id.toString() && i.status !== "CANCELLED"
         );
-        const itemRefund = getItemReturnRefundAmount(order, item);
+        const itemTotal = (item.itemTotal !== undefined && Number(item.itemTotal) > 0) 
+            ? Number(item.itemTotal) 
+            : getItemReturnRefundAmount(order, item);
+        const shippingCharge = Number(order.pricing?.shippingCharge) || 0;
+        const finalWithShipping = Number((itemTotal + shippingCharge).toFixed(2));
+
+        // Each item cancellation refunds that itemTotal, and if all items cancelled refund final itemTotal + shippingCharge
         const refundAmount = (otherActiveItems.length === 0) 
-            ? remainingUnrefunded 
-            : Math.min(itemRefund, remainingUnrefunded);
+            ? (remainingUnrefunded > 0 ? remainingUnrefunded : finalWithShipping) 
+            : Math.min(itemTotal, remainingUnrefunded);
 
         if (refundAmount > 0) {
             await processWalletTransactionService({
@@ -920,6 +1066,10 @@ const cancelProductService = async (params, body) => {
             order.payment.refundedAmount = Number((alreadyRefunded + refundAmount).toFixed(2));
             order.payment.status = order.payment.refundedAmount >= order.pricing.totalAmount ? "REFUNDED" : "PARTIALLY_REFUNDED";
         }
+    } else {
+        // CASH_ON_DELIVERY or unpaid: no refund
+        item.refundStatus = "NONE";
+        item.refundedAmount = 0;
     }
 
     item.status = "CANCELLED";
@@ -973,6 +1123,7 @@ const returnOrderService = async (params, body) => {
     order.returnInfo = { ...order.returnInfo, reason, requestedAt: date };
 
     // NOTE: Refund only after the status "RETURNED" (by Admin)
+    checkAndSyncOrderStatus(order);
     await order.save();
 
     return {
@@ -1000,10 +1151,6 @@ const returnProductService = async (params, body) => {
         throw new Error("Order is not found");
     }
 
-    if (order.orderStatus !== "DELIVERED") {
-        throw new Error("Order must be delivered before requesting return");
-    }
-
     const item = order.items.find(item => 
         item.product?.toString() === productId?.toString() || item._id?.toString() === productId?.toString()
     );
@@ -1023,6 +1170,7 @@ const returnProductService = async (params, body) => {
     item.returnInfo.requestedAt = date;
 
     // NOTE: Refund only after the status "RETURNED" (by Admin)
+    checkAndSyncOrderStatus(order);
     await order.save();
 
     return {
@@ -1105,19 +1253,28 @@ const toggleItemService = async (params, body) => {
         // Reupdate stock while cancelling items
         await restoreItemStock(item);
 
-        // If Razorpay or Wallet, refund to wallet
-        const isPrepaidOrWallet = ["RAZORPAY", "WALLET"].includes(order.payment?.method);
+        const cleanMethod = (order.payment?.method || "").replace(/[^a-zA-Z]/g, "").toUpperCase();
+        const isCashOnDelivery = cleanMethod === "CASHONDELIVERY" || cleanMethod === "COD";
+        const isPrepaidOrWallet = cleanMethod === "RAZORPAY" || cleanMethod === "WALLET";
         const isPaid = order.payment?.status === "PAID";
+
+        // If Razorpay or Wallet, refund to wallet
         if (isPrepaidOrWallet && isPaid && item.refundStatus !== "REFUNDED") {
             const alreadyRefunded = Number(order.payment?.refundedAmount) || 0;
             const remainingUnrefunded = Math.max(0, Number((order.pricing.totalAmount - alreadyRefunded).toFixed(2)));
             const otherActiveItems = order.items.filter(i => 
                 i._id.toString() !== item._id.toString() && i.status !== "CANCELLED"
             );
-            const itemRefund = getItemReturnRefundAmount(order, item);
+            const itemTotal = (item.itemTotal !== undefined && Number(item.itemTotal) > 0) 
+                ? Number(item.itemTotal) 
+                : getItemReturnRefundAmount(order, item);
+            const shippingCharge = Number(order.pricing?.shippingCharge) || 0;
+            const finalWithShipping = Number((itemTotal + shippingCharge).toFixed(2));
+
+            // Each item cancellation refunds that itemTotal, and if all items cancelled refund final itemTotal + shippingCharge
             const refundAmount = (otherActiveItems.length === 0) 
-                ? remainingUnrefunded 
-                : Math.min(itemRefund, remainingUnrefunded);
+                ? (remainingUnrefunded > 0 ? remainingUnrefunded : finalWithShipping) 
+                : Math.min(itemTotal, remainingUnrefunded);
 
             if (refundAmount > 0) {
                 await processWalletTransactionService({
@@ -1133,6 +1290,10 @@ const toggleItemService = async (params, body) => {
                 order.payment.refundedAmount = Number((alreadyRefunded + refundAmount).toFixed(2));
                 order.payment.status = order.payment.refundedAmount >= order.pricing.totalAmount ? "REFUNDED" : "PARTIALLY_REFUNDED";
             }
+        } else {
+            // CASH_ON_DELIVERY or unpaid: no refund
+            item.refundStatus = "NONE";
+            item.refundedAmount = 0;
         }
     }
     else if (status === "RETURN_REJECTED") {
@@ -1231,6 +1392,44 @@ const verifyPaymentService = async (body) => {
         order.items.forEach(item => {
             item.status = "PLACED";
         });
+    }
+
+    // Decrement inventory for all items in order since payment is verified and order is placed
+    for (const item of (order.items || [])) {
+        const itemSize = Number(item.size);
+        const itemQuantity = Number(item.quantity) || 1;
+        await Variant.findOneAndUpdate(
+            {
+                _id: item.variant,
+                inventory: {
+                    $elemMatch: {
+                        size: itemSize,
+                        quantity: { $gte: itemQuantity }
+                    }
+                }
+            },
+            {
+                $inc: { "inventory.$.quantity": -itemQuantity }
+            }
+        );
+    }
+
+    // Update coupon if order has applied coupon
+    if (order.appliedCoupon && order.appliedCoupon.coupon) {
+        const cpn = await Coupon.findById(order.appliedCoupon.coupon);
+        if (cpn && !cpn.usedBy?.some(u => u?.toString() === order.user?.toString())) {
+            await Coupon.updateOne(
+                { _id: order.appliedCoupon.coupon },
+                {
+                    $inc: { usedCount: 1 },
+                    $push: { usedBy: order.user }
+                }
+            );
+            const updatedCoupon = await Coupon.findById(order.appliedCoupon.coupon);
+            if (updatedCoupon && updatedCoupon.usageCount && updatedCoupon.usedCount >= updatedCoupon.usageCount) {
+                await Coupon.deleteOne({ _id: order.appliedCoupon.coupon });
+            }
+        }
     }
 
     await order.save();

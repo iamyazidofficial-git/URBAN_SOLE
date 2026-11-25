@@ -2,13 +2,16 @@ import React from 'react';
 import './OrderSuccess.css';
 import { useLocation } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
+import Navbar from '../../../partials/navbar/navbar';
 
 const OrderSuccess = () => {
     const location = useLocation();
     const { orderId, estimatedDelivery, _id } = location?.state || {};
     const navigate = useNavigate();
   return (
-    <div className="order-success-container">
+    <div className="order-page-wrapper">
+      <Navbar />
+      <div className="order-success-container">
       <div className="order-success-card">
         {/* Success Illustration / Icon */}
         <div className="illustration-wrapper">
@@ -65,6 +68,7 @@ Thank you for shopping with Urban Sole. Order ID:{orderId}</p>
           </button>
         </div>
       </div>
+    </div>
     </div>
   );
 };

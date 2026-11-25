@@ -20,4 +20,8 @@ const variantSchema = new mongoose.Schema({
   images: [{ type: String }]
 }, { timestamps: true })
 
+variantSchema.index({ "inventory.quantity": 1 })
+variantSchema.index({ colour: 1 })
+variantSchema.index({ "inventory.size": 1 })
+
 module.exports = mongoose.model('Variant', variantSchema, 'variant')

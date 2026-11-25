@@ -1467,3 +1467,129 @@
   opacity: 0.85;
 }
 
+/* ================= BLACK & WHITE ORDER CONFIRM MODAL ================= */
+
+.order-confirm-modal {
+  background-color: #ffffff;
+  width: 100%;
+  max-width: 420px;
+  padding: 36px 30px;
+  text-align: center;
+  border: 1px solid #111111;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+  animation: fadeInModal 0.2s ease-out;
+}
+
+@keyframes fadeInModal {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.order-confirm-icon {
+  width: 54px;
+  height: 54px;
+  background-color: #000000;
+  color: #ffffff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 18px auto;
+}
+
+.order-confirm-icon span {
+  font-size: 26px;
+  color: #ffffff;
+}
+
+.order-confirm-modal h2 {
+  font-size: 1.15rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  color: #000000;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.order-confirm-modal p {
+  font-size: 0.88rem;
+  color: #555555;
+  margin-bottom: 24px;
+  line-height: 1.4;
+}
+
+.order-confirm-cancel-btn {
+  background-color: #ffffff;
+  color: #000000;
+  border: 1.5px solid #000000;
+  padding: 11px 22px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.order-confirm-cancel-btn:hover:not(:disabled) {
+  background-color: #f4f4f4;
+}
+
+.order-confirm-cancel-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.order-confirm-submit-btn {
+  background-color: #000000;
+  color: #ffffff;
+  border: 1.5px solid #000000;
+  padding: 11px 24px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 140px;
+}
+
+.order-confirm-submit-btn:hover:not(:disabled) {
+  background-color: #222222;
+}
+
+.order-confirm-submit-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.order-spinner-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.order-btn-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #ffffff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: orderSpin 0.7s linear infinite;
+  display: inline-block;
+}
+
+@keyframes orderSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
