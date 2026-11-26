@@ -69,6 +69,16 @@ axiosInstance.interceptors.response.use(
     console.log("MESSAGE:", error.response?.data?.message)
 
     const errorMessage = error.response?.data?.message || "";
+    const requestUrl = error.config?.url || "";
+
+    // Do not treat authentication/login endpoints as expired sessions
+    if (
+      requestUrl.includes("/user/login") ||
+      requestUrl.includes("/user/google") ||
+      requestUrl.includes("/admin/login")
+    ) {
+      return Promise.reject(error);
+    }
 
     // 1. Check if user is blocked
     if (

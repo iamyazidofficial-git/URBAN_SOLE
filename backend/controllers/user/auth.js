@@ -324,12 +324,13 @@ const googleLogin = async (req, res) => {
         user.googleId = googleId
         user.profileImage = picture || user.profileImage
         user.isVerified = true
+        if (!user.gender) user.gender = "other"
 
         await user.save()
       }
     } else {
       user = await User.create({
-        name: name,
+        name: name || payload?.given_name || email.split("@")[0],
         email: email,
         googleId: googleId,
         gender: "other",
@@ -368,9 +369,9 @@ const googleLogin = async (req, res) => {
   } catch (error) {
     console.log("Google Login Error:", error)
 
-    return res.status(401).json({
+    return res.status(400).json({
       success: false,
-      message: "Google authentication failed",
+      message: error.message || "Google authentication failed",
     })
   }
 }

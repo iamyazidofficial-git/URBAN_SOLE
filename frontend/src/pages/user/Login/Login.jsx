@@ -72,6 +72,7 @@ const Login = () => {
     } catch (error) {
       console.log("GOOGLE LOGIN ERROR:", error)
       console.log("BACKEND ERROR:", error.response?.data)
+      setNewError(error.response?.data?.message || "Google authentication failed")
     }
   }
 
@@ -190,6 +191,7 @@ const Login = () => {
             onSuccess={handleGoogleSuccess}
             onError={() => {
               console.log("Google Login Failed")
+              setNewError("Google Sign-In failed or was cancelled.")
             }}
           />
 
